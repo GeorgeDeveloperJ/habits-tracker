@@ -33,8 +33,13 @@ export const fetchHabitCategories = async (): Promise<HabitCategory[]> => {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || `Error ${response.status}: Failed to fetch categories`);
     }
+    
+    // Parse and return the JSON and store it in a variable 
+    const jsonResponse = await response.json();
 
-    return await response.json();
+    // Return the data property of the JSON response as an array of HabitCategory
+    return jsonResponse.data as HabitCategory[];
+
   } catch (error) {
     console.error('API Error [fetchHabitCategories]:', error);
     throw error;

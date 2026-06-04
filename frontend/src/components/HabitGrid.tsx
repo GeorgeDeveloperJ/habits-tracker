@@ -8,6 +8,7 @@ import type { HabitCategory } from '../services/api';
  * HabitGrid Component
  * Fetches and displays the 8 habit categories and handles planning logic.
  */
+
 const HabitGrid: React.FC = () => {
   const [categories, setCategories] = useState<HabitCategory[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -82,7 +83,7 @@ const HabitGrid: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 p-4">
-        {categories.map((category) => (
+        {categories?.map((category) => (
           <HabitCard
             key={category.id}
             name={category.name}

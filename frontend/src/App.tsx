@@ -1,5 +1,4 @@
 import HabitGrid from './components/HabitGrid'
-import './App.css'
 
 function App() {
   return (
