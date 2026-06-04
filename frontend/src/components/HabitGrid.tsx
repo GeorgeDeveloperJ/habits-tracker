@@ -1,14 +1,38 @@
 import React, { useEffect, useState } from 'react';
+import { 
+  BookOpen, 
+  Activity, 
+  Utensils, 
+  Brain, 
+  Target, 
+  Wallet, 
+  Layers, 
+  Moon, 
+  Zap 
+} from 'lucide-react';
 import HabitCard from './HabitCard';
 import PlanningModal from './PlanningModal';
 import { fetchHabitCategories } from '../services/api';
 import type { HabitCategory } from '../services/api';
 
 /**
+ * Dictionary mapping category names to their respective Lucide icons.
+ */
+const categoryIcons: Record<string, JSX.Element> = {
+  'Learning': <BookOpen className="h-6 w-6" />,
+  'Physical Health': <Activity className="h-6 w-6" />,
+  'Nutrition': <Utensils className="h-6 w-6" />,
+  'Mindfulness': <Brain className="h-6 w-6" />,
+  'Work / Focus': <Target className="h-6 w-6" />,
+  'Finance': <Wallet className="h-6 w-6" />,
+  'Organization': <Layers className="h-6 w-6" />,
+  'Rest': <Moon className="h-6 w-6" />,
+};
+
+/**
  * HabitGrid Component
  * Fetches and displays the 8 habit categories and handles planning logic.
  */
-
 const HabitGrid: React.FC = () => {
   const [categories, setCategories] = useState<HabitCategory[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -53,9 +77,7 @@ const HabitGrid: React.FC = () => {
     return (
       <div className="flex min-h-[400px] flex-col items-center justify-center p-6 text-center">
         <div className="mb-4 rounded-full bg-red-100 p-3 text-red-600 dark:bg-red-900/20 dark:text-red-400">
-          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <Zap className="h-8 w-8" />
         </div>
         <p className="text-gray-900 dark:text-gray-100 font-medium">{error}</p>
         <button 
@@ -88,6 +110,7 @@ const HabitGrid: React.FC = () => {
             key={category.id}
             name={category.name}
             description={category.description}
+            icon={categoryIcons[category.name] || <Zap className="h-6 w-6" />}
             onClick={() => setSelectedCategory(category)}
           />
         ))}
