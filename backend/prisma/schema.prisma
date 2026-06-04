@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,4 +5,63 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// 1. 8 Fundamental Habit Categories
+model HabitCategory {
+  id          String          @id @default(uuid())
+  name        String          @unique
+  description String?
+  
+  // Relation to PlannedAction: Una categoría puede tener muchas acciones planeadas
+  plans       PlannedAction[] 
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+// 2. The 31-Day Sprint
+model Cycle {
+  id        String     @id @default(uuid())
+  startDate DateTime   @default(now())
+  endDate   DateTime
+  isActive  Boolean    @default(true)
+  
+  // Relation: A cycle has many days (exactly 31)
+  logs      DailyLog[] 
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+// 3. The Daily Log
+model DailyLog {
+  id        String          @id @default(uuid())
+  date      DateTime        @default(now())
+  isClosed  Boolean         @default(false) 
+  
+  cycleId   String
+  cycle     Cycle           @relation(fields: [cycleId], references: [id])
+  
+  // Relation: A day has the planned tasks from the previous night
+  plans     PlannedAction[] 
+  
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+// 4. The Planned Action (The specific goal written by the user)
+model PlannedAction {
+  id          String        @id @default(uuid())
+  description String        
+  isCompleted Boolean       @default(false)
+  
+  logId       String
+  dailyLog    DailyLog      @relation(fields: [logId], references: [id])
+  
+  categoryId  String
+  category    HabitCategory @relation(fields: [categoryId], references: [id])
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
