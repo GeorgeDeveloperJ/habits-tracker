@@ -3,7 +3,8 @@ import cors from 'cors';
 const corsOptions = {
     origin: [
         'http://localhost:5173',
-        'https://habits-tracker-flame.vercel.app/'
+        'https://habits-tracker-flame.vercel.app',
+        'https://habitstracker-web.vercel.app'
     ],
     methods: 'GET,POST,PUT,PATCH,DELETE',
     credentials: true
