@@ -46,7 +46,8 @@ export const getCycleProgress = async ( req: express.Request, res: express.Respo
                 daysLogged,
                 completedActions,
                 overallCompletionRate
-            }
+            },
+            logs
         });
 
     } catch ( error ) {
