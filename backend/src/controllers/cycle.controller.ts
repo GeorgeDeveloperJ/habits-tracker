@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import logger from '../config/logger';
 
 export const startCycle = async ( req: Request, res: Response ) => {
     try {
@@ -16,7 +17,7 @@ export const startCycle = async ( req: Request, res: Response ) => {
             data: cycle
         });
     } catch ( error ) {
-        console.error( error );
+        logger.error(`Error starting cycle: ${error as Error}.message`);
         res.status( 500 ).json({
             success: false,
             message: 'Error starting cycle'
@@ -33,7 +34,7 @@ export const getCurrentCycle = async ( req: Request, res: Response ) => {
             data: cycle
         });
     } catch ( error ) {
-        console.error( error );
+        logger.error(`Error fetching current cycle: ${error as Error}.message`);
         res.status( 500 ).json({
             success: false,
             message: 'Error fetching current cycle'

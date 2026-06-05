@@ -1,5 +1,6 @@
 import express from 'express';
 import { prisma } from '../config/db';
+import logger from '../config/logger';
 
 export const getCycleProgress = async ( req: express.Request, res: express.Response ) => {
     try {
@@ -51,7 +52,7 @@ export const getCycleProgress = async ( req: express.Request, res: express.Respo
         });
 
     } catch ( error ) {
-        console.error( error );
+        logger.error(`Error fetching cycle progress: ${error as Error}.message`);
         res.status( 500 ).json( { message: 'Internal server error' } );
     }
 }

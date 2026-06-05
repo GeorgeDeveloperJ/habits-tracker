@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import logger from '../config/logger';
 
 export const getCoreHabits = async ( req: Request, res: Response ) => {
     try {
@@ -9,7 +10,7 @@ export const getCoreHabits = async ( req: Request, res: Response ) => {
             data: habits
         });
     } catch ( error) {
-        console.error( error );
+        logger.error(`Error fetching habits: ${error as Error}.message`);
         res.status( 500 ).json({
             sucess: false,
             message: 'Error fetching habits'
