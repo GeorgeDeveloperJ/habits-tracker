@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { saveDailyGoal } from '../services/api';
 import type { HabitCategory } from '../services/api';
 
 interface PlanningModalProps {
@@ -12,28 +11,8 @@ interface PlanningModalProps {
  * PlanningModal Component
  * A modal form for inputting a specific goal for tomorrow.
  */
-const PlanningModal: React.FC<PlanningModalProps> = ({ category, onClose, onSuccess }) => {
+const PlanningModal: React.FC<PlanningModalProps> = ({ category, onClose }) => {
   const [goal, setGoal] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!goal.trim()) return;
-
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      await saveDailyGoal(category.id, goal);
-      onSuccess();
-      onClose();
-    } catch (err) {
-      setError('Failed to save your goal. Please try again.');
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -62,28 +41,27 @@ const PlanningModal: React.FC<PlanningModalProps> = ({ category, onClose, onSucc
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+            <div className="mb-4 rounded-lg bg-yellow-50 p-4 border border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
+              <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
+                Note: Specific daily goal creation is currently disabled while the backend API is being updated to support these entries.
+              </p>
+            </div>
+
             <div>
               <label htmlFor="goal" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 What is your specific goal for tomorrow?
               </label>
               <textarea
                 id="goal"
-                autoFocus
-                required
+                disabled
                 rows={3}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 p-4 text-gray-900 placeholder-gray-400 focus:border-purple-500 focus:ring-purple-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100 dark:placeholder-gray-600 outline-none transition-all"
-                placeholder="e.g., Run 5km at 7:00 AM, Read 20 pages..."
+                className="w-full rounded-xl border border-gray-200 bg-gray-100 p-4 text-gray-500 cursor-not-allowed dark:border-gray-800 dark:bg-gray-900 dark:text-gray-500 outline-none transition-all"
+                placeholder="Feature coming soon..."
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
               />
             </div>
-
-            {error && (
-              <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-                {error}
-              </p>
-            )}
 
             <div className="flex gap-3 pt-2">
               <button
@@ -91,14 +69,14 @@ const PlanningModal: React.FC<PlanningModalProps> = ({ category, onClose, onSucc
                 onClick={onClose}
                 className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors"
               >
-                Cancel
+                Close
               </button>
               <button
-                type="submit"
-                disabled={isSubmitting || !goal.trim()}
-                className="flex-1 rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/20"
+                type="button"
+                disabled
+                className="flex-1 rounded-xl bg-purple-600/50 py-3 text-sm font-semibold text-white cursor-not-allowed transition-all"
               >
-                {isSubmitting ? 'Saving...' : 'Set Goal'}
+                Set Goal
               </button>
             </div>
           </form>

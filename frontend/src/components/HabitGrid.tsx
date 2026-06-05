@@ -8,17 +8,19 @@ import {
   Wallet, 
   Layers, 
   Moon, 
-  Zap 
+  Zap,
+  Calendar
 } from 'lucide-react';
 import HabitCard from './HabitCard';
 import PlanningModal from './PlanningModal';
-import { fetchHabitCategories } from '../services/api';
-import type { HabitCategory } from '../services/api';
+import { fetchCycleProgress } from '../services/api';
+import type { CycleStats, HabitCategory } from '../services/api';
+import { useHabits } from '../context/HabitContext';
 
 /**
  * Dictionary mapping category names to their respective Lucide icons.
  */
-const categoryIcons: Record<string, JSX.Element> = {
+const categoryIcons: Record<string, React.ReactElement> = {
   'Learning': <BookOpen className="h-6 w-6" />,
   'Physical Health': <Activity className="h-6 w-6" />,
   'Nutrition': <Utensils className="h-6 w-6" />,
@@ -31,67 +33,90 @@ const categoryIcons: Record<string, JSX.Element> = {
 
 /**
  * HabitGrid Component
- * Fetches and displays the 8 habit categories and handles planning logic.
+ * Displays the 8 habit categories and handles planning logic.
  */
 const HabitGrid: React.FC = () => {
-  const [categories, setCategories] = useState<HabitCategory[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { categories, activeCycle } = useHabits();
+  const [progress, setProgress] = useState<CycleStats | null>(null);
   
   // Selection state for planning
   const [selectedCategory, setSelectedCategory] = useState<HabitCategory | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadStats = async () => {
       try {
-        setLoading(true);
-        const data = await fetchHabitCategories();
-        setCategories(data);
-        setError(null);
+        const progressData = await fetchCycleProgress();
+        setProgress(progressData);
       } catch (err) {
-        setError('Failed to load habit categories. Please ensure the backend is running.');
-        console.error(err);
-      } finally {
-        setLoading(false);
+        console.error('Failed to load cycle progress:', err);
       }
     };
 
-    loadCategories();
-  }, []);
+    if (activeCycle) {
+      loadStats();
+    }
+  }, [activeCycle]);
 
   const handlePlanningSuccess = () => {
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-      </div>
-    );
+  // Date Math logic: Calculate current sprint day locally
+  let currentDayNumber = 1;
+  if (activeCycle?.startDate) {
+    const startDate = new Date(activeCycle.startDate).getTime();
+    const today = Date.now();
+    const diffTime = Math.abs(today - startDate);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    currentDayNumber = Math.max(1, Math.min(31, diffDays + 1));
   }
 
-  if (error) {
-    return (
-      <div className="flex min-h-[400px] flex-col items-center justify-center p-6 text-center">
-        <div className="mb-4 rounded-full bg-red-100 p-3 text-red-600 dark:bg-red-900/20 dark:text-red-400">
-          <Zap className="h-8 w-8" />
-        </div>
-        <p className="text-gray-900 dark:text-gray-100 font-medium">{error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="mt-4 rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  // Fallback completion rate if progress API is slow
+  const completionRate = progress?.overallCompletionRate || 0;
 
   return (
-    <div className="relative">
+    <div className="relative space-y-8">
+      {/* Cycle Progress Header */}
+      <div className="mx-4 overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-gray-900 dark:border-gray-800">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+              <Calendar className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Current Cycle</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Day {currentDayNumber} of 31</p>
+            </div>
+          </div>
+          
+          <div className="flex-1 max-w-md">
+            <div className="flex justify-between mb-2 text-sm font-medium">
+              <span className="text-gray-600 dark:text-gray-400">Overall Progress</span>
+              <span className="text-purple-600 dark:text-purple-400">{completionRate}%</span>
+            </div>
+            <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden dark:bg-gray-800">
+              <div 
+                className="h-full bg-purple-600 transition-all duration-1000 ease-out"
+                style={{ width: `${completionRate}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-8">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress?.daysLogged || 0}</p>
+              <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Days Logged</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress?.completedActions || 0}</p>
+              <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Actions Done</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Success Notification */}
       {showSuccessToast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-bottom-4 duration-300">

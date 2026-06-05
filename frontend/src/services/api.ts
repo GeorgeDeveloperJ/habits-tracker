@@ -12,62 +12,157 @@ export interface HabitCategory {
   id: string;
   name: string;
   description: string;
-  icon?: string; // Optional icon identifier for the UI
+  icon?: string;
 }
+
+export interface Cycle {
+  id: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+}
+
+export interface DailyLog {
+  id: string;
+  date: string;
+  isClosed: boolean;
+  cycleId: string;
+}
+
+/**
+ * Interface for cycle progress statistics.
+ */
+export interface CycleStats {
+  cycleId: string;
+  currentDayNumber: number;
+  daysLogged: number;
+  completedActions: number;
+  overallCompletionRate: number;
+}
+
+// ==========================================
+// HabitService
+// ==========================================
 
 /**
  * Fetches the 8 fixed habit categories from the backend.
  * @returns A promise that resolves to an array of HabitCategory.
- * @throws Error if the network request fails.
  */
 export const fetchHabitCategories = async (): Promise<HabitCategory[]> => {
+  const response = await fetch(`${API_BASE_URL}/habits`, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch habits: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  return json.data || [];
+};
+
+// ==========================================
+// CycleService
+// ==========================================
+
+export const fetchActiveCycle = async (): Promise<Cycle | null> => {
+  const response = await fetch(`${API_BASE_URL}/cycles`);
+  if (!response.ok) return null;
+  
+  const jsonResponse = await response.json();
+  
+  // El backend ya buscó el ciclo activo, solo lo retornamos
+  return jsonResponse.data || null; 
+};
+
+export const startNewCycle = async (): Promise<Cycle> => {
+  const response = await fetch(`${API_BASE_URL}/cycles`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to start cycle: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  return json.data;
+};
+
+// ==========================================
+// DailyLogService
+// ==========================================
+
+export const createDailyLog = async (cycleId: string): Promise<DailyLog> => {
+  const response = await fetch(`${API_BASE_URL}/days`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cycleId }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create daily log: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  return json.data;
+};
+
+export const toggleDailyLogStatus = async (dayId: string, isClosed: boolean): Promise<DailyLog> => {
+  const response = await fetch(`${API_BASE_URL}/days/${dayId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isClosed }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to toggle daily log: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  return json.data;
+};
+
+// ==========================================
+// ProgressService
+// ==========================================
+
+/**
+ * Fetches the progress of the current cycle.
+ */
+export const fetchCycleProgress = async (): Promise<CycleStats | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/habits`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const response = await fetch(`${API_BASE_URL}/cycle-progress/current`, {
+      headers: { 'Content-Type': 'application/json' },
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Error ${response.status}: Failed to fetch categories`);
-    }
-    
-    // Parse and return the JSON and store it in a variable 
-    const jsonResponse = await response.json();
-
-    // Return the data property of the JSON response as an array of HabitCategory
-    return jsonResponse.data as HabitCategory[];
-
+    if (!response.ok) return null;
+    const json = await response.json();
+    return json.stats;
   } catch (error) {
-    console.error('API Error [fetchHabitCategories]:', error);
-    throw error;
+    console.error('Error fetching cycle progress:', error);
+    return null;
   }
 };
 
 /**
- * Saves a specific goal for tomorrow for a given habit category.
- * @param categoryId - The ID of the habit category.
- * @param goal - The specific goal string.
- * @returns A promise that resolves when the goal is saved.
+ * Saves a specific goal for a habit category.
+ * Note: This currently targets /goals, which should map to PlannedActions on the backend.
+ * @param categoryId - UUID of the habit category.
+ * @param goal - The text description of the goal.
  */
 export const saveDailyGoal = async (categoryId: string, goal: string): Promise<void> => {
   try {
     const response = await fetch(`${API_BASE_URL}/goals`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ categoryId, goal, date: 'tomorrow' }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Error ${response.status}: Failed to save goal`);
+      throw new Error(`Failed to save goal: ${response.statusText}`);
     }
   } catch (error) {
-    console.error('API Error [saveDailyGoal]:', error);
+    console.error('Error saving daily goal:', error);
     throw error;
   }
 };
