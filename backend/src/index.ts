@@ -1,16 +1,22 @@
 import express, { Request, Response } from 'express';
 import { corsMiddleware } from './middlewares/cors';
 import habitRoutes from './routes/habit.routes';
+import cycleRoutes from './routes/cycle.routes';
+import dayRoutes from './routes/day.routes';
+import cycleProgressRoutes from './routes/cycleProgress.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Global middlewares
-app.use(corsMiddleware);
+app.use( corsMiddleware );
 app.use( express.json() );
 
 // Routes register
 app.use( '/api/habits', habitRoutes );
+app.use( '/api/cycles', cycleRoutes );
+app.use( '/api/days', dayRoutes );
+app.use( '/api/cycle-progress', cycleProgressRoutes );
 
 // Main route
 app.get('/', ( req: Request, res: Response ) => {
