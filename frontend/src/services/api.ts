@@ -22,11 +22,19 @@ export interface Cycle {
   isActive: boolean;
 }
 
+export interface PlannedAction {
+  id: string;
+  categoryId: string;
+  description: string;
+  isCompleted: boolean;
+}
+
 export interface DailyLog {
   id: string;
   date: string;
   isClosed: boolean;
   cycleId: string;
+  plans: PlannedAction[];
 }
 
 /**
@@ -127,17 +135,22 @@ export const toggleDailyLogStatus = async (dayId: string, isClosed: boolean): Pr
 // ProgressService
 // ==========================================
 
+export interface CycleProgressResponse {
+  stats: CycleStats;
+  logs: DailyLog[];
+}
+
 /**
  * Fetches the progress of the current cycle.
  */
-export const fetchCycleProgress = async (): Promise<CycleStats | null> => {
+export const fetchCycleProgress = async (): Promise<CycleProgressResponse | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/cycle-progress/current`, {
       headers: { 'Content-Type': 'application/json' },
     });
     if (!response.ok) return null;
     const json = await response.json();
-    return json.stats;
+    return { stats: json.stats, logs: json.logs || [] };
   } catch (error) {
     console.error('Error fetching cycle progress:', error);
     return null;
@@ -165,4 +178,34 @@ export const saveDailyGoal = async (categoryId: string, goal: string): Promise<v
     console.error('Error saving daily goal:', error);
     throw error;
   }
+};
+
+export const createAction = async (categoryId: string, description: string): Promise<PlannedAction> => {
+  const response = await fetch(`${API_BASE_URL}/actions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ categoryId, description }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create action: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  return json.data;
+};
+
+export const toggleActionStatus = async (actionId: string, isCompleted: boolean): Promise<PlannedAction> => {
+  const response = await fetch(`${API_BASE_URL}/actions/${actionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isCompleted }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to toggle action status: ${response.statusText}`);
+  }
+
+  const json = await response.json();
+  return json.data;
 };

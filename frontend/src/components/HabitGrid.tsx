@@ -13,8 +13,8 @@ import {
 } from 'lucide-react';
 import HabitCard from './HabitCard';
 import PlanningModal from './PlanningModal';
-import { fetchCycleProgress } from '../services/api';
-import type { CycleStats, HabitCategory } from '../services/api';
+import { toggleActionStatus } from '../services/api';
+import type { HabitCategory, PlannedAction } from '../services/api';
 import { useHabits } from '../context/HabitContext';
 
 /**
@@ -36,29 +36,43 @@ const categoryIcons: Record<string, React.ReactElement> = {
  * Displays the 8 habit categories and handles planning logic.
  */
 const HabitGrid: React.FC = () => {
-  const { categories, activeCycle } = useHabits();
-  const [progress, setProgress] = useState<CycleStats | null>(null);
+  const { categories, activeCycle, progress, todayLog, refreshProgress } = useHabits();
   
   // Selection state for planning
   const [selectedCategory, setSelectedCategory] = useState<HabitCategory | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
+  // Optimistic UI state for plans
+  const [optimisticPlans, setOptimisticPlans] = useState<PlannedAction[]>([]);
+  
   useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const progressData = await fetchCycleProgress();
-        setProgress(progressData);
-      } catch (err) {
-        console.error('Failed to load cycle progress:', err);
-      }
-    };
-
-    if (activeCycle) {
-      loadStats();
+    if (todayLog?.plans) {
+      setOptimisticPlans(todayLog.plans);
     }
-  }, [activeCycle]);
+  }, [todayLog?.plans]);
 
-  const handlePlanningSuccess = () => {
+  const handleToggleAction = async (action: PlannedAction) => {
+    const originalPlans = [...optimisticPlans];
+    const newStatus = !action.isCompleted;
+    
+    // Optimistic update
+    setOptimisticPlans(prev => prev.map(p => 
+      p.id === action.id ? { ...p, isCompleted: newStatus } : p
+    ));
+
+    try {
+      await toggleActionStatus(action.id, newStatus);
+      await refreshProgress();
+    } catch (error) {
+      console.error('Failed to toggle action:', error);
+      // Revert optimistic update
+      setOptimisticPlans(originalPlans);
+      alert('Failed to update task status.');
+    }
+  };
+
+  const handlePlanningSuccess = async () => {
+    await refreshProgress();
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 3000);
   };
@@ -74,7 +88,7 @@ const HabitGrid: React.FC = () => {
   }
 
   // Fallback completion rate if progress API is slow
-  const completionRate = progress?.overallCompletionRate || 0;
+  const completionRate = progress?.stats?.overallCompletionRate || 0;
 
   return (
     <div className="relative space-y-8">
@@ -106,11 +120,11 @@ const HabitGrid: React.FC = () => {
 
           <div className="flex gap-8">
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress?.daysLogged || 0}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress?.stats?.daysLogged || 0}</p>
               <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Days Logged</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress?.completedActions || 0}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress?.stats?.completedActions || 0}</p>
               <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Actions Done</p>
             </div>
           </div>
@@ -139,6 +153,57 @@ const HabitGrid: React.FC = () => {
             onClick={() => setSelectedCategory(category)}
           />
         ))}
+      </div>
+
+      {/* Today's Actions Checklist */}
+      <div className="mx-4 mb-8 overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-gray-900 dark:border-gray-800 animate-in fade-in slide-in-from-bottom-4">
+        <h3 className="mb-4 text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+          Today's Specific Goals
+        </h3>
+        
+        {optimisticPlans.length === 0 ? (
+          <p className="text-gray-500 dark:text-gray-400 text-sm italic">
+            You haven't set any specific goals for today. Click on a category above to plan for tomorrow!
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {optimisticPlans.map((action) => {
+              const category = categories.find(c => c.id === action.categoryId);
+              return (
+                <div 
+                  key={action.id}
+                  className="flex items-center gap-4 rounded-xl border border-gray-100 p-4 transition-all hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                >
+                  <button
+                    onClick={() => handleToggleAction(action)}
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border transition-colors ${
+                      action.isCompleted 
+                        ? 'border-purple-600 bg-purple-600 text-white' 
+                        : 'border-gray-300 bg-white hover:border-purple-600 dark:border-gray-600 dark:bg-gray-900'
+                    }`}
+                  >
+                    {action.isCompleted && (
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                  <div className="flex flex-col">
+                    <span className={`text-sm font-medium ${action.isCompleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
+                      {action.description}
+                    </span>
+                    {category && (
+                      <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold mt-1">
+                        {category.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Planning Form Modal */}
