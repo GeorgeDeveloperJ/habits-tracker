@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import logger from '../config/logger';
 
 export const createAction = async ( req: Request, res: Response ) => {
     try {
@@ -29,7 +30,7 @@ export const createAction = async ( req: Request, res: Response ) => {
         })
 
     } catch ( error ) {
-        console.error( error );
+        logger.error( error );
         res.status ( 500 ).json({
             success: false,
             message: 'Error creating action'
@@ -48,14 +49,14 @@ export const toggleActionStatus = async ( req: Request, res: Response ) => {
             where: { id },
             data: { isCompleted }
         })
-        
+
         res.status( 200 ).json({
             success: true,
             message: 'Action updated successfully',
             data: action
         })
     } catch ( error ) {
-        console.error( error );
+        logger.error(`Error toggling action status: ${error as Error}.message`);
         res.status ( 500 ).json({
             success: false,
             message: 'Error updating action'

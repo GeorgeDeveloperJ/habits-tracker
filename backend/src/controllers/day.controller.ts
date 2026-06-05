@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import logger from '../config/logger';
 
 export const createDay = async ( req: Request, res: Response ) => {
     try {
@@ -22,7 +23,7 @@ export const createDay = async ( req: Request, res: Response ) => {
         res.status( 201 ).json( day );
 
     } catch ( error ) {
-        console.error( error );
+        logger.error(`Error creating day: ${error as Error}.message`);
         res.status( 500 ).json( { message: 'Internal server error' } );
     }
 }
@@ -32,7 +33,7 @@ export const getDays = async ( req: Request, res: Response ) => {
         const days = await prisma.dailyLog.findMany();
         res.status( 200 ).json( days );
     } catch ( error ) {
-        console.error( error );
+        logger.error(`Error fetching days: ${error as Error}.message`);
         res.status( 500 ).json( { message: 'Internal server error' } );
     }
 }
@@ -62,7 +63,7 @@ export const updateDay = async ( req: Request, res: Response ) => {
         });
         res.status( 200 ).json( day );
     } catch ( error ) {
-        console.error( error );
+        logger.error(`Error updating day: ${error as Error}.message`);
         res.status( 500 ).json( { message: 'Internal server error' } );
     }
 }
