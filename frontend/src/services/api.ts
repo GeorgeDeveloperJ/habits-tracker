@@ -3,7 +3,9 @@
  * Adheres to the 31-Day Cycle data model.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const BASE_DOMAIN = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = `${BASE_DOMAIN}/api`;
+
 /**
  * Interface representing a fixed habit category.
  */
