@@ -3,8 +3,7 @@
  * Adheres to the 31-Day Cycle data model.
  */
 
-const API_BASE_URL = 'http://localhost:3000/api';
-
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 /**
  * Interface representing a fixed habit category.
  */
@@ -57,7 +56,7 @@ export interface CycleStats {
  * @returns A promise that resolves to an array of HabitCategory.
  */
 export const fetchHabitCategories = async (): Promise<HabitCategory[]> => {
-  const response = await fetch(`${API_BASE_URL}/habits`, {
+  const response = await fetch(`${API_URL}/habits`, {
     headers: { 'Content-Type': 'application/json' },
   });
 
@@ -74,7 +73,7 @@ export const fetchHabitCategories = async (): Promise<HabitCategory[]> => {
 // ==========================================
 
 export const fetchActiveCycle = async (): Promise<Cycle | null> => {
-  const response = await fetch(`${API_BASE_URL}/cycles`);
+  const response = await fetch(`${API_URL}/cycles`);
   if (!response.ok) return null;
   
   const jsonResponse = await response.json();
@@ -84,7 +83,7 @@ export const fetchActiveCycle = async (): Promise<Cycle | null> => {
 };
 
 export const startNewCycle = async (): Promise<Cycle> => {
-  const response = await fetch(`${API_BASE_URL}/cycles`, {
+  const response = await fetch(`${API_URL}/cycles`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -102,7 +101,7 @@ export const startNewCycle = async (): Promise<Cycle> => {
 // ==========================================
 
 export const createDailyLog = async (cycleId: string): Promise<DailyLog> => {
-  const response = await fetch(`${API_BASE_URL}/days`, {
+  const response = await fetch(`${API_URL}/days`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ cycleId }),
@@ -117,7 +116,7 @@ export const createDailyLog = async (cycleId: string): Promise<DailyLog> => {
 };
 
 export const toggleDailyLogStatus = async (dayId: string, isClosed: boolean): Promise<DailyLog> => {
-  const response = await fetch(`${API_BASE_URL}/days/${dayId}`, {
+  const response = await fetch(`${API_URL}/days/${dayId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ isClosed }),
@@ -145,7 +144,7 @@ export interface CycleProgressResponse {
  */
 export const fetchCycleProgress = async (): Promise<CycleProgressResponse | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/cycle-progress/current`, {
+    const response = await fetch(`${API_URL}/cycle-progress/current`, {
       headers: { 'Content-Type': 'application/json' },
     });
     if (!response.ok) return null;
@@ -165,7 +164,7 @@ export const fetchCycleProgress = async (): Promise<CycleProgressResponse | null
  */
 export const saveDailyGoal = async (categoryId: string, goal: string): Promise<void> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/goals`, {
+    const response = await fetch(`${API_URL}/goals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ categoryId, goal, date: 'tomorrow' }),
@@ -181,7 +180,7 @@ export const saveDailyGoal = async (categoryId: string, goal: string): Promise<v
 };
 
 export const createAction = async (categoryId: string, description: string): Promise<PlannedAction> => {
-  const response = await fetch(`${API_BASE_URL}/actions`, {
+  const response = await fetch(`${API_URL}/actions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ categoryId, description }),
@@ -196,7 +195,7 @@ export const createAction = async (categoryId: string, description: string): Pro
 };
 
 export const toggleActionStatus = async (actionId: string, isCompleted: boolean): Promise<PlannedAction> => {
-  const response = await fetch(`${API_BASE_URL}/actions/${actionId}`, {
+  const response = await fetch(`${API_URL}/actions/${actionId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ isCompleted }),
