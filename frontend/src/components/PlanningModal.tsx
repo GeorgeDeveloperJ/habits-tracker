@@ -53,7 +53,7 @@ const PlanningModal: React.FC<PlanningModalProps> = ({ category, onClose, onSucc
           </div>
 
           <div className="mb-6">
-            <span className="inline-flex items-center rounded-full bg-purple-900/30 px-3 py-1 text-xs font-medium text-purple-300">
+            <span className="inline-flex items-center rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-400">
               {category.name}
             </span>
             <p className="mt-2 text-sm text-slate-400">
@@ -70,7 +70,7 @@ const PlanningModal: React.FC<PlanningModalProps> = ({ category, onClose, onSucc
                 id="goal"
                 disabled={isSubmitting}
                 rows={3}
-                className="w-full rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-100 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all"
+                className="w-full rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-100 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-all"
                 placeholder="Enter your specific goal here..."
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
@@ -82,17 +82,17 @@ const PlanningModal: React.FC<PlanningModalProps> = ({ category, onClose, onSucc
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 rounded-xl border border-slate-800 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-800 transition-colors"
+                className="flex-1 rounded-xl bg-transparent border border-slate-700 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-800 transition-colors"
               >
                 Close
               </button>
               <button
                 type="submit"
                 disabled={!goal.trim() || isSubmitting}
-                className={`flex-1 rounded-xl py-3 text-sm font-semibold text-white transition-all ${
+                className={`flex-1 rounded-xl py-3 text-sm font-semibold transition-all ${
                   !goal.trim() || isSubmitting
-                    ? 'bg-purple-400 cursor-not-allowed'
-                    : 'bg-purple-600 hover:bg-purple-700 shadow-md hover:shadow-lg'
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    : 'bg-lime-400 hover:bg-lime-500 text-slate-950 font-semibold shadow-md hover:shadow-lg'
                 }`}
               >
                 {isSubmitting ? 'Saving...' : 'Set Goal'}

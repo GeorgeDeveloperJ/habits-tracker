@@ -15,10 +15,10 @@ const HabitCard: React.FC<HabitCardProps> = ({ name, description, icon, onClick 
   return (
     <div 
       onClick={onClick}
-      className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 p-6 transition-all hover:shadow-lg hover:border-purple-500/50 cursor-pointer"
+      className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 p-6 transition-all hover:shadow-lg hover:border-cyan-500/50 cursor-pointer"
     >
       <div className="flex items-center justify-between mb-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-900/20 text-purple-400">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
           {icon || (
             <svg
               className="h-6 w-6"
@@ -38,7 +38,7 @@ const HabitCard: React.FC<HabitCardProps> = ({ name, description, icon, onClick 
         </div>
       </div>
       
-      <h3 className="mb-2 text-lg font-semibold text-slate-100 group-hover:text-purple-400 transition-colors">
+      <h3 className="mb-2 text-lg font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors">
         {name}
       </h3>
       
@@ -47,7 +47,7 @@ const HabitCard: React.FC<HabitCardProps> = ({ name, description, icon, onClick 
       </p>
 
       {/* Subtle bottom accent line */}
-      <div className="absolute bottom-0 left-0 h-1 w-0 bg-purple-600 transition-all duration-300 group-hover:w-full" />
+      <div className="absolute bottom-0 left-0 h-1 w-0 bg-cyan-500 transition-all duration-300 group-hover:w-full" />
     </div>
   );
 };

@@ -13,19 +13,19 @@ export default function Tracker() {
   if (loading) {
     content = (
       <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-purple-600 dark:text-purple-400" />
+        <Loader2 className="h-12 w-12 animate-spin text-cyan-500" />
       </div>
     );
   } else if (error) {
     content = (
       <div className="flex min-h-[400px] flex-col items-center justify-center p-6 text-center">
-        <div className="mb-4 rounded-full bg-red-100 p-3 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+        <div className="mb-4 rounded-full bg-red-900/20 p-3 text-red-400">
           <Zap className="h-8 w-8" />
         </div>
-        <p className="text-gray-900 dark:text-gray-100 font-medium">{error}</p>
+        <p className="text-slate-200 font-medium">{error}</p>
         <button 
           onClick={refreshCycle}
-          className="mt-4 rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 transition-colors"
+          className="mt-4 rounded-lg bg-lime-400 px-4 py-2 text-slate-950 hover:bg-lime-500 transition-colors font-semibold"
         >
           Retry
         </button>
@@ -43,7 +43,7 @@ export default function Tracker() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             <span className="block">31-Day Habit Tracker</span>
-            <span className="block text-purple-400">Master Your Routine</span>
+            <span className="block text-cyan-400">Master Your Routine</span>
           </h1>
           <p className="mt-2 max-w-md text-base text-slate-400 sm:text-lg">
             Focus on 8 key habit categories. Set daily goals and track your progress through the cycle.

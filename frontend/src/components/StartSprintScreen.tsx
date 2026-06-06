@@ -29,7 +29,7 @@ const StartSprintScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
-      <div className="mb-8 p-6 rounded-full bg-purple-900/30 text-purple-400">
+      <div className="mb-8 p-6 rounded-full bg-cyan-500/10 text-cyan-400">
         <Rocket className="w-16 h-16" />
       </div>
       
@@ -51,7 +51,7 @@ const StartSprintScreen: React.FC = () => {
       <button
         onClick={handleStartSprint}
         disabled={isStarting}
-        className="mt-10 inline-flex items-center gap-2 px-8 py-4 border border-transparent text-lg font-bold rounded-xl shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-70 disabled:cursor-not-allowed transition-all"
+        className="mt-10 inline-flex items-center gap-2 px-8 py-4 text-lg font-semibold rounded-xl shadow-sm bg-lime-400 hover:bg-lime-500 text-slate-950 disabled:opacity-70 disabled:cursor-not-allowed transition-all cursor-pointer"
       >
         {isStarting ? (
           <>
