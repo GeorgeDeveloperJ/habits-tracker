@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
   PieChart, Pie, Cell
@@ -197,8 +196,8 @@ export default function AnalyticsDashboard() {
                   <CardTitle className="text-white">Overview</CardTitle>
                   <CardDescription>Habits distribution by category</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col items-center justify-center relative">
-                  <div className="h-[250px] w-full">
+                <CardContent className="flex-1 flex flex-col items-center justify-center">
+                  <div className="h-[250px] w-full relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -222,11 +221,11 @@ export default function AnalyticsDashboard() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
-                  </div>
-                  {/* Absolute Center Text */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none mt-2">
-                    <p className="text-3xl font-bold text-white">1.0K</p>
-                    <p className="text-xs text-slate-400">Total Logs</p>
+                    {/* Absolute Center Text */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <p className="text-3xl font-bold text-white">1.0K</p>
+                      <p className="text-xs text-slate-400">Total Logs</p>
+                    </div>
                   </div>
                   
                   {/* Legend Below */}

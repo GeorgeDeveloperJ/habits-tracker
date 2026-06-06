@@ -1,8 +1,7 @@
-import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   Search, Globe, Sun, ShoppingCart, Bell, LayoutDashboard, Grid, 
-  Settings, User, LogOut, Target, CheckCircle2
+  Settings, LogOut, Target, CheckCircle2
 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
