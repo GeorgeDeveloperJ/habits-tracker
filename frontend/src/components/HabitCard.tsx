@@ -15,10 +15,10 @@ const HabitCard: React.FC<HabitCardProps> = ({ name, description, icon, onClick 
   return (
     <div 
       onClick={onClick}
-      className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 transition-all hover:shadow-lg dark:border-gray-800 dark:bg-gray-900 dark:hover:border-purple-500/50 cursor-pointer"
+      className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 p-6 transition-all hover:shadow-lg hover:border-purple-500/50 cursor-pointer"
     >
       <div className="flex items-center justify-between mb-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-900/20 text-purple-400">
           {icon || (
             <svg
               className="h-6 w-6"
@@ -38,11 +38,11 @@ const HabitCard: React.FC<HabitCardProps> = ({ name, description, icon, onClick 
         </div>
       </div>
       
-      <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+      <h3 className="mb-2 text-lg font-semibold text-slate-100 group-hover:text-purple-400 transition-colors">
         {name}
       </h3>
       
-      <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+      <p className="text-sm leading-relaxed text-slate-400">
         {description}
       </p>
 

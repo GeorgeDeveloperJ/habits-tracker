@@ -93,24 +93,24 @@ const HabitGrid: React.FC = () => {
   return (
     <div className="relative space-y-8">
       {/* Cycle Progress Header */}
-      <div className="mx-4 overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-gray-900 dark:border-gray-800">
+      <div className="mx-4 overflow-hidden rounded-2xl bg-slate-900 p-6 shadow-sm border border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-900/30 text-purple-400">
               <Calendar className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Current Cycle</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Day {currentDayNumber} of 31</p>
+              <h2 className="text-lg font-bold text-white">Current Cycle</h2>
+              <p className="text-sm text-slate-400">Day {currentDayNumber} of 31</p>
             </div>
           </div>
           
           <div className="flex-1 max-w-md">
             <div className="flex justify-between mb-2 text-sm font-medium">
-              <span className="text-gray-600 dark:text-gray-400">Overall Progress</span>
-              <span className="text-purple-600 dark:text-purple-400">{completionRate}%</span>
+              <span className="text-slate-400">Overall Progress</span>
+              <span className="text-purple-400">{completionRate}%</span>
             </div>
-            <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden dark:bg-gray-800">
+            <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-purple-600 transition-all duration-1000 ease-out"
                 style={{ width: `${completionRate}%` }}
@@ -120,12 +120,12 @@ const HabitGrid: React.FC = () => {
 
           <div className="flex gap-8">
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress?.stats?.daysLogged || 0}</p>
-              <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Days Logged</p>
+              <p className="text-2xl font-bold text-white">{progress?.stats?.daysLogged || 0}</p>
+              <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Days Logged</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{progress?.stats?.completedActions || 0}</p>
-              <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Actions Done</p>
+              <p className="text-2xl font-bold text-white">{progress?.stats?.completedActions || 0}</p>
+              <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Actions Done</p>
             </div>
           </div>
         </div>
@@ -156,14 +156,14 @@ const HabitGrid: React.FC = () => {
       </div>
 
       {/* Today's Actions Checklist */}
-      <div className="mx-4 mb-8 overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-gray-100 dark:bg-gray-900 dark:border-gray-800 animate-in fade-in slide-in-from-bottom-4">
-        <h3 className="mb-4 text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+      <div className="mx-4 mb-8 overflow-hidden rounded-2xl bg-slate-900 p-6 shadow-sm border border-slate-800 animate-in fade-in slide-in-from-bottom-4">
+        <h3 className="mb-4 text-xl font-bold text-white flex items-center gap-2">
+          <Target className="h-5 w-5 text-purple-400" />
           Today's Specific Goals
         </h3>
         
         {optimisticPlans.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400 text-sm italic">
+          <p className="text-slate-400 text-sm italic">
             You haven't set any specific goals for today. Click on a category above to plan for tomorrow!
           </p>
         ) : (
@@ -173,14 +173,14 @@ const HabitGrid: React.FC = () => {
               return (
                 <div 
                   key={action.id}
-                  className="flex items-center gap-4 rounded-xl border border-gray-100 p-4 transition-all hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                  className="flex items-center gap-4 rounded-xl border border-slate-800 p-4 transition-all hover:bg-slate-800/50"
                 >
                   <button
                     onClick={() => handleToggleAction(action)}
                     className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border transition-colors ${
                       action.isCompleted 
                         ? 'border-purple-600 bg-purple-600 text-white' 
-                        : 'border-gray-300 bg-white hover:border-purple-600 dark:border-gray-600 dark:bg-gray-900'
+                        : 'border-slate-700 bg-slate-900 hover:border-purple-500'
                     }`}
                   >
                     {action.isCompleted && (
@@ -190,11 +190,11 @@ const HabitGrid: React.FC = () => {
                     )}
                   </button>
                   <div className="flex flex-col">
-                    <span className={`text-sm font-medium ${action.isCompleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
+                    <span className={`text-sm font-medium ${action.isCompleted ? 'text-slate-500 line-through' : 'text-slate-100'}`}>
                       {action.description}
                     </span>
                     {category && (
-                      <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold mt-1">
+                      <span className="text-xs text-purple-400 font-semibold mt-1">
                         {category.name}
                       </span>
                     )}
