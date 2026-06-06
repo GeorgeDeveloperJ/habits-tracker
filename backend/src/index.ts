@@ -5,6 +5,7 @@ import cycleRoutes from './routes/cycle.routes';
 import dayRoutes from './routes/day.routes';
 import cycleProgressRoutes from './routes/cycleProgress.routes';
 import actionRoutes from './routes/actions.routes';
+import authRoutes from './routes/auth.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,7 +20,7 @@ app.use( '/api/cycles', cycleRoutes );
 app.use( '/api/days', dayRoutes );
 app.use( '/api/cycle-progress', cycleProgressRoutes );
 app.use( '/api/actions', actionRoutes );
-
+app.use( '/api/auth', authRoutes);
 // Main route
 app.get('/', ( req: Request, res: Response ) => {
   res.status(200).json({

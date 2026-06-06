@@ -4,10 +4,16 @@ import logger from '../config/logger';
 
 export const startCycle = async ( req: Request, res: Response ) => {
     try {
+        const { userId } = req;
+        if ( !userId ) {
+            return res.status(401).json({ success: false, message: 'Unathorized' });
+        }
+
         const date = new Date();
         const endDate = new Date( date.getTime() + 31 * 24 * 60 * 60 * 1000 ); // 31 days later
         const cycle = await prisma.cycle.create({
             data: {
+                userId,
                 endDate
             }
         });
@@ -17,7 +23,7 @@ export const startCycle = async ( req: Request, res: Response ) => {
             data: cycle
         });
     } catch ( error ) {
-        logger.error(`Error starting cycle: ${error as Error}.message`);
+        logger.error(`Error starting cycle: ${(error as Error).message}`);
         res.status( 500 ).json({
             success: false,
             message: 'Error starting cycle'
@@ -34,7 +40,7 @@ export const getCurrentCycle = async ( req: Request, res: Response ) => {
             data: cycle
         });
     } catch ( error ) {
-        logger.error(`Error fetching current cycle: ${error as Error}.message`);
+        logger.error(`Error fetching current cycle: ${(error as Error).message}`);
         res.status( 500 ).json({
             success: false,
             message: 'Error fetching current cycle'

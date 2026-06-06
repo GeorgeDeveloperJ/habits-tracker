@@ -10,7 +10,7 @@ export const getCoreHabits = async ( req: Request, res: Response ) => {
             data: habits
         });
     } catch ( error) {
-        logger.error(`Error fetching habits: ${error as Error}.message`);
+        logger.error(`Error fetching habits: ${(error as Error).message}`);
         res.status( 500 ).json({
             sucess: false,
             message: 'Error fetching habits'

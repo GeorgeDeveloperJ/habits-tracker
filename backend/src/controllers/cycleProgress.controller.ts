@@ -52,7 +52,7 @@ export const getCycleProgress = async ( req: express.Request, res: express.Respo
         });
 
     } catch ( error ) {
-        logger.error(`Error fetching cycle progress: ${error as Error}.message`);
+        logger.error(`Error fetching cycle progress: ${(error as Error).message}`);
         res.status( 500 ).json( { message: 'Internal server error' } );
     }
 }

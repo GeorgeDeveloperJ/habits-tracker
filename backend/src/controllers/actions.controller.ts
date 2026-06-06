@@ -4,6 +4,11 @@ import logger from '../config/logger';
 
 export const createAction = async ( req: Request, res: Response ) => {
     try {
+        const { userId } = req;
+        if ( !userId ) {
+            return res.status(401).json({ success: false, message: 'Unathorized' });
+        }
+
         const { categoryId, description } = req.body;
 
         const getLog = await prisma.dailyLog.findFirst({
@@ -18,6 +23,7 @@ export const createAction = async ( req: Request, res: Response ) => {
 
         const action = await prisma.plannedAction.create({
             data: {
+                userId,
                 logId: getLog.id,
                 categoryId: categoryId as string,
                 description
@@ -56,7 +62,7 @@ export const toggleActionStatus = async ( req: Request, res: Response ) => {
             data: action
         })
     } catch ( error ) {
-        logger.error(`Error toggling action status: ${error as Error}.message`);
+        logger.error(`Error toggling action status: ${(error as Error).message}`);
         res.status ( 500 ).json({
             success: false,
             message: 'Error updating action'
