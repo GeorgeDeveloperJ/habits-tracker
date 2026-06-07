@@ -2,6 +2,26 @@
 
 Our backend utilizes **Prisma ORM** with a **PostgreSQL** database. The schema is designed to enforce the 31-day sprint logic and track daily atomic habits.
 
+## 👤 User Model (Authentication)
+
+The `User` model is the central entity for authentication and multi-tenancy. All other user-specific entities (`Cycle`, `DailyLog`, and `PlannedAction`) are strictly linked to a user to ensure complete data isolation.
+
+### Schema Definition
+
+| Field | Type | Attributes | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `String` | `@id`, `@default(uuid())` | Unique identifier (UUID) for the user. |
+| `email` | `String` | `@unique` | The user's unique email address, used for authentication. |
+| `hashedPassword` | `String` | | Securely stored bcrypt password hash. |
+| `createdAt` | `DateTime` | `@default(now())` | Timestamp indicating when the user was created. |
+| `updatedAt` | `DateTime` | `@updatedAt` | Timestamp indicating when the user was last updated. |
+
+### Relations
+
+- **`cycles` (`Cycle[]`)**: One-to-many relationship with `Cycle`. A user can have multiple tracking sprints.
+- **`logs` (`DailyLog[]`)**: One-to-many relationship with `DailyLog`. A user owns their daily logged progress.
+- **`plans` (`PlannedAction[]`)**: One-to-many relationship with `PlannedAction`. A user owns their specific habit goals.
+
 ## 🗺️ Core Models
 
 The database is built around 4 main entities:
@@ -22,6 +42,7 @@ The database is built around 4 main entities:
    - The lowest level entity. Represents a user's specific written goal for a day (e.g., "Read 10 pages of Clean Code").
    - Ties together a `DailyLog` (when it happens) and a `HabitCategory` (what pillar it belongs to).
    - Contains the critical `isCompleted` boolean toggled by the frontend.
+
 
 ## 🛠️ Essential Commands
 

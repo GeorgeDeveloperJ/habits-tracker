@@ -4,6 +4,11 @@ import logger from '../config/logger';
 
 export const createDay = async ( req: Request, res: Response ) => {
     try {
+        const { userId } = req;
+        if ( !userId ) {
+            return res.status(401).json({ success: false, message: 'Unathorized' });
+        }
+
         const activeCycle = await prisma.cycle.findFirst({
             where: { endDate: { gte: new Date() } },
             orderBy: { endDate: 'desc' }
@@ -16,6 +21,7 @@ export const createDay = async ( req: Request, res: Response ) => {
         const date = new Date();
         const day = await prisma.dailyLog.create({
             data: {
+                userId,
                 date,
                 cycleId: activeCycle.id
             }
@@ -41,12 +47,11 @@ export const getDays = async ( req: Request, res: Response ) => {
 export const updateDay = async ( req: Request, res: Response ) => {
     try {
         const id = req.params.id as string;
-        const updateData = req.body;
 
-        // Prevent updating date, cycleId, and id
-        delete updateData.date;
-        delete updateData.cycleId;
-        delete updateData.id;
+        // Only allow safe fields to be updated
+        const { isClosed } = req.body;
+        const updateData: { isClosed?: boolean } = {};
+        if ( isClosed !== undefined ) updateData.isClosed = isClosed;
 
         const activeCycle = await prisma.cycle.findFirst({
             where: { endDate: { gte: new Date() } },
@@ -63,7 +68,7 @@ export const updateDay = async ( req: Request, res: Response ) => {
         });
         res.status( 200 ).json( day );
     } catch ( error ) {
-        logger.error(`Error updating day: ${error as Error}.message`);
+        logger.error(`Error updating day: ${(error as Error).message}`);
         res.status( 500 ).json( { message: 'Internal server error' } );
     }
 }

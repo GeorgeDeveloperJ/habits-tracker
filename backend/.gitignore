@@ -6,3 +6,7 @@ node_modules/
 
 # Ignore build output
 dist/
+
+# Postman
+.postman/
+*.postman_environment.json

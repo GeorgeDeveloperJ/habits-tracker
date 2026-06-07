@@ -1,10 +1,19 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useHabits } from './context/HabitContext'
 import HabitGrid from './components/HabitGrid'
 import StartSprintScreen from './components/StartSprintScreen'
 import { Loader2, Zap } from 'lucide-react'
 
-function App() {
+// Import Auth Components
+import Login from './components/auth/Login'
+import Register from './components/auth/Register'
+import ProtectedRoute from './components/auth/ProtectedRoute'
+import { useAuthStore } from './store/authStore'
+
+// The main application content has been extracted into a separate component
+function HabitTrackerView() {
   const { activeCycle, loading, error, refreshCycle } = useHabits();
+  const logout = useAuthStore((state) => state.logout);
 
   let content;
 
@@ -37,6 +46,16 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#16171d] py-12 px-4 sm:px-6 lg:px-8">
+      {/* Logout button at the top right */}
+      <div className="max-w-7xl mx-auto flex justify-end mb-4">
+        <button 
+          onClick={logout}
+          className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#1f2128] hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-900/50 transition-all duration-200"
+        >
+          Logout
+        </button>
+      </div>
+
       <header className="max-w-7xl mx-auto mb-12 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl md:text-6xl">
           <span className="block">31-Day Habit Tracker</span>
@@ -55,6 +74,27 @@ function App() {
         <p>© 2026 Habit Tracker MVP - Built with React & Tailwind</p>
       </footer>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        
+        {/* Protected Dashboard Route */}
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <HabitTrackerView />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </Router>
   )
 }
 
