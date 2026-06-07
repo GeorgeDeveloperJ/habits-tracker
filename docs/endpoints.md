@@ -25,6 +25,110 @@ Retrieves the running status of the Habit Tracker backend service.
 
 ---
 
+## 🔐 Authentication
+
+Authentication is managed via JSON Web Tokens (JWT). Users register with an email and password, and login to obtain a JWT token.
+
+### Register a User
+Creates a new user account with a unique email address and a securely hashed password.
+
+*   **URL:** `/api/auth/register`
+*   **Method:** `POST`
+*   **URL Parameters:** None
+*   **Body Payload:**
+    ```json
+    {
+      "email": "user@example.com",
+      "password": "securepassword123"
+    }
+    ```
+*   **Success Response:** `201 Created`
+    ```json
+    {
+      "success": true,
+      "message": "User created succesfully",
+      "data": {
+        "id": "e7b049d9-7158-49c7-876a-3507c30932bb",
+        "email": "user@example.com"
+      }
+    }
+    ```
+    > [!NOTE]
+    > Note the spelling of the JSON message `'User created succesfully'` (with one 's' in the middle of successfully) returned by the controller.
+*   **Error Handling:**
+    *   `400 Bad Request`: Returned if email or password is missing, or if the email is already registered.
+        ```json
+        {
+          "success": false,
+          "message": "Email and password are required."
+        }
+        ```
+        or
+        ```json
+        {
+          "success": false,
+          "message": "User already exists."
+        }
+        ```
+    *   `500 Internal Server Error`: Returned when user creation or hashing fails.
+        ```json
+        {
+          "success": false,
+          "message": "Error registering"
+        }
+        ```
+
+### Login a User
+Authenticates a user with email and password, returning a JWT token for subsequent authenticated requests.
+
+*   **URL:** `/api/auth/login`
+*   **Method:** `POST`
+*   **URL Parameters:** None
+*   **Body Payload:**
+    ```json
+    {
+      "email": "user@example.com",
+      "password": "securepassword123"
+    }
+    ```
+*   **Success Response:** `200 OK`
+    ```json
+    {
+      "success": true,
+      "message": "Login succesful",
+      "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "email": "user@example.com"
+      }
+    }
+    ```
+    > [!NOTE]
+    > Note the spelling of the JSON message `'Login succesful'` (with one 'l' at the end and one 's' in the middle) returned by the controller.
+*   **Error Handling:**
+    *   `400 Bad Request`: Returned if email or password is missing.
+        ```json
+        {
+          "success": false,
+          "message": "Email and password are required."
+        }
+        ```
+    *   `401 Unauthorized`: Returned if the email does not exist or the password is incorrect.
+        ```json
+        {
+          "success": false,
+          "message": "Invalid credentials"
+        }
+        ```
+    *   `500 Internal Server Error`: Returned when authentication logic fails.
+        ```json
+        {
+          "success": false,
+          "message": "Error logging in"
+        }
+        ```
+
+---
+
 ## 🏷️ Habit Categories
 
 The `HabitCategory` model represents the 8 fundamental habit pillars (such as learning, physical health, etc.) pre-seeded in the database.
