@@ -20,7 +20,7 @@ app.use( '/api/cycles', cycleRoutes );
 app.use( '/api/days', dayRoutes );
 app.use( '/api/cycle-progress', cycleProgressRoutes );
 app.use( '/api/actions', actionRoutes );
-app.use( '/api/auth', authRoutes);
+app.use( '/api/auth', authRoutes );
 // Main route
 app.get('/', ( req: Request, res: Response ) => {
   res.status(200).json({
