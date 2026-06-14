@@ -8,7 +8,7 @@ import actionRoutes from './routes/actions.routes';
 import authRoutes from './routes/auth.routes';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Global middlewares
 app.use( corsMiddleware );
@@ -36,7 +36,7 @@ app.get('/api/health', ( req: Request, res: Response ) => {
   })
 })
 
-app.listen( PORT, () => {
+app.listen( PORT, '0.0.0.0', () => {
   console.log(`Server is running url: http://localhost:${PORT}`)
 })
 
