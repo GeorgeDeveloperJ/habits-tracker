@@ -230,30 +230,14 @@ execSync('npm run dev', { stdio: 'inherit' });
 
 ## 6. Production Dockerfile (`backend/Dockerfile`)
 
-A separate multi-stage production build was also added in this branch. It is **not** used by `docker-compose.yml` but is available for deploying the compiled backend.
+Build the backend runtime and release tools from the same revision.
 
-```dockerfile
-# Stage 1 — Build
-FROM node:24-alpine AS builder
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY . .
-RUN DATABASE_URL="postgresql://dummy" npx prisma generate
-RUN npm run build
-
-# Stage 2 — Run
-FROM node:24-alpine AS production
-WORKDIR /app
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-CMD ["node", "dist/index.js"]
+```sh
+docker build -f backend/Dockerfile -t habits-api:release backend
+docker build -f backend/Dockerfile --target release-tools -t habits-release-tools:release backend
 ```
 
-| Stage | Purpose |
-|---|---|
-| **builder** | Installs all deps, generates Prisma client, compiles TypeScript to `dist/` |
-| **production** | Copies only `node_modules` and `dist/` — results in a lean final image |
+Run the release tools image once with the target `DATABASE_URL` supplied through the deployment secret store. Its default command applies migrations. Run `./node_modules/.bin/prisma db seed` in the same image where categories have not been initialized. Start the API only after the release jobs succeed. The runtime uses production dependencies and an unprivileged user. `/api/health` checks HTTP liveness and `/api/ready` checks database connectivity.
 
 > [!NOTE]
 > `DATABASE_URL="postgresql://dummy"` is passed during the build stage only to satisfy Prisma's `generate` command, which requires a valid-format URL at build time even though it never actually connects.

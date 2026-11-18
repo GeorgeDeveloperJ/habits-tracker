@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { z, ZodSchema } from 'zod';
+import { z, ZodType } from 'zod';
 
-export const validate = (schema: ZodSchema) => {
+export const validate = (schema: ZodType) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body ?? {});
     if (!result.success) {
@@ -19,29 +19,29 @@ export const validate = (schema: ZodSchema) => {
 
 export const registerSchema = z.object({
   email: z
-    .string({ required_error: 'Email and password are required.' })
+    .string({ error: issue => issue.input === undefined ? 'Email and password are required.' : undefined })
     .trim()
     .min(1, 'Email and password are required.')
     .email('Invalid email address.'),
   password: z
-    .string({ required_error: 'Email and password are required.' })
+    .string({ error: issue => issue.input === undefined ? 'Email and password are required.' : undefined })
     .min(6, 'Password must be at least 6 characters long.'),
 });
 
 export const loginSchema = z.object({
   email: z
-    .string({ required_error: 'Email and password are required.' })
+    .string({ error: issue => issue.input === undefined ? 'Email and password are required.' : undefined })
     .trim()
     .min(1, 'Email and password are required.')
     .email('Invalid email address.'),
   password: z
-    .string({ required_error: 'Email and password are required.' })
+    .string({ error: issue => issue.input === undefined ? 'Email and password are required.' : undefined })
     .min(1, 'Email and password are required.'),
 });
 
 export const forgotPasswordSchema = z.object({
   email: z
-    .string({ required_error: 'Email is required.' })
+    .string({ error: issue => issue.input === undefined ? 'Email is required.' : undefined })
     .trim()
     .min(1, 'Email is required.')
     .email('Invalid email address.'),
@@ -49,11 +49,11 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   token: z
-    .string({ required_error: 'Reset token is required.' })
+    .string({ error: issue => issue.input === undefined ? 'Reset token is required.' : undefined })
     .trim()
     .min(1, 'Reset token is required.'),
   password: z
-    .string({ required_error: 'Password is required.' })
+    .string({ error: issue => issue.input === undefined ? 'Password is required.' : undefined })
     .min(6, 'Password must be at least 6 characters long.'),
 });
 
@@ -77,19 +77,18 @@ export const createDaySchema = z.object({
 
 export const updateDaySchema = z.object({
   isClosed: z.boolean({
-    required_error: 'isClosed boolean is required',
-    invalid_type_error: 'isClosed must be a boolean',
+    error: issue => issue.input === undefined ? 'isClosed boolean is required' : 'isClosed must be a boolean',
   }),
   forceClose: z.boolean().optional(),
 });
 
 export const createActionSchema = z.object({
   categoryId: z
-    .string({ required_error: 'categoryId is required' })
+    .string({ error: issue => issue.input === undefined ? 'categoryId is required' : undefined })
     .trim()
     .min(1, 'categoryId is required'),
   description: z
-    .string({ required_error: 'description is required' })
+    .string({ error: issue => issue.input === undefined ? 'description is required' : undefined })
     .trim()
     .min(1, 'Description cannot be empty')
     .max(500, 'Description must be 500 characters or fewer'),
@@ -106,7 +105,7 @@ export const updateActionSchema = z
       .max(500, 'Description must be 500 characters or fewer')
       .optional(),
     isCompleted: z
-      .boolean({ invalid_type_error: 'isCompleted must be a boolean' })
+      .boolean({ error: 'isCompleted must be a boolean' })
       .optional(),
   })
   .refine((data) => data.description !== undefined || data.isCompleted !== undefined, {

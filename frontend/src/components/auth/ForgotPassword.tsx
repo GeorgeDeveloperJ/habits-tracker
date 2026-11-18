@@ -12,7 +12,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { requestPasswordReset, type ForgotPasswordResult } from '../../services/api';
+import { requestPasswordReset } from '../../services/api';
 import { AuthShowcasePanel, AuthThemeToggleBar } from './Login';
 import { Input } from '../ui/input';
 import { Button, ButtonLink } from '../ui/button';
@@ -22,7 +22,6 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ForgotPasswordResult | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const token = useAuthStore((state) => state.token);
@@ -50,8 +49,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const res = await requestPasswordReset(trimmed);
-      setResult(res);
+      await requestPasswordReset(trimmed);
       setSubmitted(true);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -103,33 +101,6 @@ export default function ForgotPassword() {
                   </div>
                 </div>
 
-                {result?.resetToken && (
-                  <div className="rounded-[24px] border border-[var(--border-hairline)] bg-[var(--bg-sand)] p-5 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-                        {t("Local / Demo Reset Token")}
-                      </span>
-                      <span className="rounded-full bg-[#E6FA72] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
-                        {t("15M TTL")}
-                      </span>
-                    </div>
-
-                    <code className="block w-full overflow-x-auto whitespace-nowrap rounded-full bg-[var(--bg-card)] px-4 py-2 font-mono-tabular text-[11px] text-[var(--text-primary)] select-all">
-                      {result.resetToken}
-                    </code>
-
-                    <ButtonLink
-                      to={`/reset-password?token=${encodeURIComponent(result.resetToken)}`}
-                      variant="lime"
-                      size="lg"
-                      className="w-full"
-                    >
-                      {t("Continue to Reset Password")}
-                      <ArrowRight className="h-4 w-4" />
-                    </ButtonLink>
-                  </div>
-                )}
-
                 <div className="flex flex-col gap-2 pt-2">
                   <ButtonLink
                     to="/reset-password"
@@ -142,7 +113,6 @@ export default function ForgotPassword() {
                     type="button"
                     onClick={() => {
                       setSubmitted(false);
-                      setResult(null);
                     }}
                     className="text-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] py-1.5 cursor-pointer"
                   >

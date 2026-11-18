@@ -47,6 +47,22 @@ async function apiRequest<T = Record<string, unknown>>(
   return { status: res.status, body: parsed };
 }
 
+const testMailbox = new Map<string, { resetToken: string; expiresAt: string }>();
+
+async function requestResetFromMailbox(
+  path: '/api/auth/forgot-password',
+  options: { method: 'POST'; body: { email: string } }
+) {
+  const email = options.body.email.trim().toLowerCase();
+  testMailbox.delete(email);
+  const response = await apiRequest<{ success: boolean; message: string; data: null }>(path, options);
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data, null, 'The public API must never return recovery credentials');
+  const delivery = testMailbox.get(email);
+  assert.ok(delivery, 'The reset link must be delivered to the account mailbox');
+  return { ...response, delivery };
+}
+
 function uniqueEmail(label: string): string {
   return `${TEST_EMAIL_PREFIX}${label}_${Date.now()}_${Math.random()
     .toString(36)
@@ -94,6 +110,9 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
   before(async () => {
     const mod = await import('../src/index');
     app = mod.app;
+    app.locals.passwordResetDelivery = async (email: string, resetToken: string, expiresAt: Date) => {
+      testMailbox.set(email, { resetToken, expiresAt: expiresAt.toISOString() });
+    };
 
     await cleanupTestUsers();
 
@@ -201,13 +220,9 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
     });
 
     describe('Forgot & Reset Password (FEAT-04)', () => {
-      it('T1-AUTH-PW-01: POST /api/auth/forgot-password issues resetToken in test env and stores SHA-256 tokenHash in DB', async () => {
+      it('T1-AUTH-PW-01: POST /api/auth/forgot-password delivers a token privately and stores only its SHA-256 digest', async () => {
         const user = await registerTestUser('t1_pw_req');
-        const res = await apiRequest<{
-          success: boolean;
-          message: string;
-          data: { resetToken: string; expiresAt: string };
-        }>('/api/auth/forgot-password', {
+        const res = await requestResetFromMailbox('/api/auth/forgot-password', {
           method: 'POST',
           body: { email: user.email },
         });
@@ -218,42 +233,37 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
           res.body.message,
           'If an account with that email exists, password reset instructions have been generated.'
         );
-        assert.ok(res.body.data.resetToken.length === 64);
-        assert.ok(new Date(res.body.data.expiresAt).getTime() > Date.now());
+        assert.ok(res.delivery.resetToken.length === 64);
+        assert.ok(new Date(res.delivery.expiresAt).getTime() > Date.now());
 
         const expectedHash = crypto
           .createHash('sha256')
-          .update(res.body.data.resetToken)
+          .update(res.delivery.resetToken)
           .digest('hex');
         const dbToken = await prisma.passwordResetToken.findUnique({
           where: { tokenHash: expectedHash },
         });
         assert.ok(dbToken, 'SHA-256 hashed token must be persisted in PasswordResetToken');
-        assert.notEqual(dbToken.tokenHash, res.body.data.resetToken);
+        assert.notEqual(dbToken.tokenHash, res.delivery.resetToken);
         assert.equal(dbToken.userId, user.id);
         assert.equal(dbToken.usedAt, null);
       });
 
       it('T1-AUTH-PW-02: POST /api/auth/forgot-password trims whitespace and matches email case-insensitively', async () => {
         const user = await registerTestUser('t1_pw_case');
-        const res = await apiRequest<{
-          success: boolean;
-          data: { resetToken: string; expiresAt: string } | null;
-        }>('/api/auth/forgot-password', {
+        const res = await requestResetFromMailbox('/api/auth/forgot-password', {
           method: 'POST',
           body: { email: `  ${user.email.toUpperCase()}  ` },
         });
 
         assert.equal(res.status, 200);
         assert.equal(res.body.success, true);
-        assert.ok(res.body.data?.resetToken, 'Case-insensitive email should resolve user and issue token');
+        assert.ok(res.delivery.resetToken, 'Case-insensitive email should resolve user and issue token');
       });
 
       it('T1-AUTH-PW-03: POST /api/auth/reset-password resets password with valid token and marks token used', async () => {
         const user = await registerTestUser('t1_pw_reset');
-        const forgot = await apiRequest<{
-          data: { resetToken: string };
-        }>('/api/auth/forgot-password', {
+        const forgot = await requestResetFromMailbox('/api/auth/forgot-password', {
           method: 'POST',
           body: { email: user.email },
         });
@@ -264,7 +274,7 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
           data: null;
         }>('/api/auth/reset-password', {
           method: 'POST',
-          body: { token: `  ${forgot.body.data.resetToken}  `, password: 'NewPassword123!' },
+          body: { token: `  ${forgot.delivery.resetToken}  `, password: 'NewPassword123!' },
         });
 
         assert.equal(reset.status, 200);
@@ -274,7 +284,7 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
 
         const expectedHash = crypto
           .createHash('sha256')
-          .update(forgot.body.data.resetToken)
+          .update(forgot.delivery.resetToken)
           .digest('hex');
         const dbToken = await prisma.passwordResetToken.findUnique({
           where: { tokenHash: expectedHash },
@@ -284,14 +294,13 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
 
       it('T1-AUTH-PW-04: POST /api/auth/login succeeds with new password and rejects old password after reset', async () => {
         const user = await registerTestUser('t1_pw_login', 'OldPassword123!');
-        const forgot = await apiRequest<{ data: { resetToken: string } }>(
-          '/api/auth/forgot-password',
+        const forgot = await requestResetFromMailbox('/api/auth/forgot-password',
           { method: 'POST', body: { email: user.email } }
         );
 
         const reset = await apiRequest('/api/auth/reset-password', {
           method: 'POST',
-          body: { token: forgot.body.data.resetToken, password: 'RotatedPassword999!' },
+          body: { token: forgot.delivery.resetToken, password: 'RotatedPassword999!' },
         });
         assert.equal(reset.status, 200);
 
@@ -317,27 +326,38 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
 
       it('T1-AUTH-PW-05: re-requesting forgot-password invalidates prior unused token and issues fresh valid token', async () => {
         const user = await registerTestUser('t1_pw_supersede');
-        const first = await apiRequest<{ data: { resetToken: string } }>(
-          '/api/auth/forgot-password',
+        const first = await requestResetFromMailbox('/api/auth/forgot-password',
           { method: 'POST', body: { email: user.email } }
         );
-        const second = await apiRequest<{ data: { resetToken: string } }>(
-          '/api/auth/forgot-password',
+        const duringCooldown = await apiRequest('/api/auth/forgot-password', {
+          method: 'POST',
+          body: { email: user.email },
+        });
+        assert.equal(duringCooldown.status, 429);
+        const firstToken = await prisma.passwordResetToken.findUniqueOrThrow({
+          where: { tokenHash: crypto.createHash('sha256').update(first.delivery.resetToken).digest('hex') },
+        });
+        assert.equal(firstToken.usedAt, null);
+        const limiterKey = crypto.createHmac('sha256', process.env.JWT_SECRET as string)
+          .update(JSON.stringify(['recover', 'email', user.email])).digest('hex');
+        await prisma.authRateBucket.update({ where: { key: limiterKey }, data: { expiresAt: new Date(0) } });
+
+        const second = await requestResetFromMailbox('/api/auth/forgot-password',
           { method: 'POST', body: { email: user.email } }
         );
 
-        assert.notEqual(first.body.data.resetToken, second.body.data.resetToken);
+        assert.notEqual(first.delivery.resetToken, second.delivery.resetToken);
 
         const useFirst = await apiRequest<{ success: boolean }>('/api/auth/reset-password', {
           method: 'POST',
-          body: { token: first.body.data.resetToken, password: 'Attempt1Password!' },
+          body: { token: first.delivery.resetToken, password: 'Attempt1Password!' },
         });
         assert.equal(useFirst.status, 400);
         assert.equal(useFirst.body.success, false);
 
         const useSecond = await apiRequest<{ success: boolean }>('/api/auth/reset-password', {
           method: 'POST',
-          body: { token: second.body.data.resetToken, password: 'Attempt2Password!' },
+          body: { token: second.delivery.resetToken, password: 'Attempt2Password!' },
         });
         assert.equal(useSecond.status, 200);
         assert.equal(useSecond.body.success, true);
@@ -345,6 +365,51 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
     });
 
     describe('Cycles & Cycle Progress (FIX-02a, FIX-02b)', () => {
+      it('initializes exactly one active cycle with complete Day 1 after concurrent starts', async () => {
+        const user = await registerTestUser('concurrent_cycle');
+        const options = {
+          method: 'POST',
+          token: user.token,
+          body: { initialGoals: [{ categoryId: categories[0].id, description: 'Day 1 goal' }] },
+        };
+        const responses = await Promise.all([
+          apiRequest('/api/cycles', options),
+          apiRequest('/api/cycles', options),
+        ]);
+        assert.ok(responses.some(response => response.status === 201));
+        assert.ok(responses.every(response => response.status === 201 || response.status === 409));
+        const cycles = await prisma.cycle.findMany({
+          where: { userId: user.id, isActive: true },
+          include: { logs: { include: { plans: true } } },
+        });
+        assert.equal(cycles.length, 1);
+        assert.equal(cycles[0].logs.length, 1);
+        assert.equal(cycles[0].logs[0].plans[0].description, 'Day 1 goal');
+      });
+
+      it('paginates history summaries with a stable cursor', async () => {
+        const user = await registerTestUser('paginated_cycles');
+        const date = new Date('2026-01-01T00:00:00.000Z');
+        await prisma.cycle.createMany({
+          data: Array.from({ length: 22 }, () => ({
+            userId: user.id, startDate: date, endDate: date, isActive: false,
+          })),
+        });
+        type HistoryPage = { data: Array<{ id: string; logs?: unknown }>; nextCursor: string | null };
+        const first = await apiRequest<HistoryPage>('/api/cycles/history', { token: user.token });
+        assert.equal(first.status, 200);
+        assert.equal(first.body.data.length, 20);
+        assert.ok(first.body.nextCursor);
+        assert.ok(first.body.data.every(cycle => cycle.logs === undefined));
+        const second = await apiRequest<HistoryPage>(
+          `/api/cycles/history?cursor=${first.body.nextCursor}`, { token: user.token }
+        );
+        assert.equal(second.status, 200);
+        assert.equal(second.body.data.length, 2);
+        assert.equal(second.body.nextCursor, null);
+        assert.equal(new Set([...first.body.data, ...second.body.data].map(cycle => cycle.id)).size, 22);
+      });
+
       it('T1-CYC-01: GET /api/cycles returns null when user has no active cycle', async () => {
         const user = await registerTestUser('t1_cyc_none');
         const res = await apiRequest<{ success: boolean; data: null }>('/api/cycles', {
@@ -673,7 +738,7 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
         const prevExpose = process.env.EXPOSE_RESET_TOKEN;
         try {
           process.env.NODE_ENV = 'production';
-          delete process.env.EXPOSE_RESET_TOKEN;
+          process.env.EXPOSE_RESET_TOKEN = 'true';
 
           const prodRes = await apiRequest<{
             success: boolean;
@@ -727,13 +792,12 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
 
       it('T2-AUTH-PW-04: POST /api/auth/reset-password rejects expired token with 400 (never 401)', async () => {
         const user = await registerTestUser('t2_pw_expired');
-        const forgot = await apiRequest<{ data: { resetToken: string } }>(
-          '/api/auth/forgot-password',
+        const forgot = await requestResetFromMailbox('/api/auth/forgot-password',
           { method: 'POST', body: { email: user.email } }
         );
         const tokenHash = crypto
           .createHash('sha256')
-          .update(forgot.body.data.resetToken)
+          .update(forgot.delivery.resetToken)
           .digest('hex');
 
         await prisma.passwordResetToken.update({
@@ -745,7 +809,7 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
           '/api/auth/reset-password',
           {
             method: 'POST',
-            body: { token: forgot.body.data.resetToken, password: 'NewPassword123!' },
+            body: { token: forgot.delivery.resetToken, password: 'NewPassword123!' },
           }
         );
         assert.equal(res.status, 400);
@@ -755,8 +819,7 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
 
       it('T2-AUTH-PW-05: POST /api/auth/reset-password enforces atomic single-use (rejects reuse & concurrent replay with 400)', async () => {
         const user = await registerTestUser('t2_pw_reuse', 'InitialPass123!');
-        const forgot = await apiRequest<{ data: { resetToken: string } }>(
-          '/api/auth/forgot-password',
+        const forgot = await requestResetFromMailbox('/api/auth/forgot-password',
           { method: 'POST', body: { email: user.email } }
         );
 
@@ -764,11 +827,11 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
         const [r1, r2] = await Promise.all([
           apiRequest<{ success: boolean }>('/api/auth/reset-password', {
             method: 'POST',
-            body: { token: forgot.body.data.resetToken, password: 'FirstWinPassword!' },
+            body: { token: forgot.delivery.resetToken, password: 'FirstWinPassword!' },
           }),
           apiRequest<{ success: boolean }>('/api/auth/reset-password', {
             method: 'POST',
-            body: { token: forgot.body.data.resetToken, password: 'SecondRacePassword!' },
+            body: { token: forgot.delivery.resetToken, password: 'SecondRacePassword!' },
           }),
         ]);
         const statuses = [r1.status, r2.status].sort((a, b) => a - b);
@@ -779,7 +842,7 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
           '/api/auth/reset-password',
           {
             method: 'POST',
-            body: { token: forgot.body.data.resetToken, password: 'ThirdAttemptPassword!' },
+            body: { token: forgot.delivery.resetToken, password: 'ThirdAttemptPassword!' },
           }
         );
         assert.equal(reuse.status, 400);
@@ -1160,13 +1223,12 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
         body: { initialGoals: [{ categoryId: categories[1].id, description: 'User B untouched goal' }] },
       });
 
-      const forgotA = await apiRequest<{ data: { resetToken: string } }>(
-        '/api/auth/forgot-password',
+      const forgotA = await requestResetFromMailbox('/api/auth/forgot-password',
         { method: 'POST', body: { email: userA.email } }
       );
       const resetA = await apiRequest('/api/auth/reset-password', {
         method: 'POST',
-        body: { token: forgotA.body.data.resetToken, password: 'UserANewPass123!' },
+        body: { token: forgotA.delivery.resetToken, password: 'UserANewPass123!' },
       });
       assert.equal(resetA.status, 200);
 
@@ -1579,22 +1641,21 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
       assert.equal(failedLogin.status, 401);
 
       // Request password reset
-      const forgotRes = await apiRequest<{
-        success: boolean;
-        data: { resetToken: string; expiresAt: string };
-      }>('/api/auth/forgot-password', {
+      const forgotRes = await requestResetFromMailbox('/api/auth/forgot-password', {
         method: 'POST',
         body: { email: user.email },
       });
       assert.equal(forgotRes.status, 200);
-      assert.ok(forgotRes.body.data.resetToken);
+      assert.ok(forgotRes.delivery.resetToken);
 
       // Reset password
       const resetRes = await apiRequest<{ success: boolean }>('/api/auth/reset-password', {
         method: 'POST',
-        body: { token: forgotRes.body.data.resetToken, password: 'RecoveredSecret456!' },
+        body: { token: forgotRes.delivery.resetToken, password: 'RecoveredSecret456!' },
       });
       assert.equal(resetRes.status, 200);
+      const oldSession = await apiRequest('/api/cycles', { token: user.token });
+      assert.equal(oldSession.status, 401);
 
       // Old password fails, token reuse fails
       const oldLogin = await apiRequest('/api/auth/login', {
@@ -1605,7 +1666,7 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
 
       const replayRes = await apiRequest('/api/auth/reset-password', {
         method: 'POST',
-        body: { token: forgotRes.body.data.resetToken, password: 'AnotherPassword789!' },
+        body: { token: forgotRes.delivery.resetToken, password: 'AnotherPassword789!' },
       });
       assert.equal(replayRes.status, 400);
 

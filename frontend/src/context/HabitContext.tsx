@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type {
   Cycle,
-  CycleHistoryItem,
   CycleProgressResponse,
   HabitCategory,
   InitialGoalInput,
@@ -13,7 +12,6 @@ import {
   createDailyLog,
   deleteAction,
   fetchActiveCycle,
-  fetchCycleHistory,
   fetchCycleProgress,
   fetchHabitCategories,
   startNewCycle,
@@ -33,10 +31,9 @@ const isSameUtcDay = (dateIso: string, offsetDays = 0): boolean => {
 };
 
 async function fetchAllHabitState() {
-  const [categoriesData, cycleData, historyData] = await Promise.all([
+  const [categoriesData, cycleData] = await Promise.all([
     fetchHabitCategories(),
     fetchActiveCycle(),
-    fetchCycleHistory(),
   ]);
 
   let progressData = cycleData ? await fetchCycleProgress('current') : null;
@@ -50,7 +47,7 @@ async function fetchAllHabitState() {
     }
   }
 
-  return { categoriesData, cycleData, historyData, progressData };
+  return { categoriesData, cycleData, progressData };
 }
 
 export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -58,7 +55,6 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const [categories, setCategories] = useState<HabitCategory[]>([]);
   const [activeCycle, setActiveCycle] = useState<Cycle | null>(null);
-  const [cycleHistory, setCycleHistory] = useState<CycleHistoryItem[]>([]);
   const [progress, setProgress] = useState<CycleProgressResponse | null>(null);
   const [selectedDayNumber, setSelectedDayNumber] = useState<number | null>(null);
   const [loadedToken, setLoadedToken] = useState<string | null>(null);
@@ -66,10 +62,9 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [error, setError] = useState<string | null>(null);
 
   const applyAllData = useCallback(async (activeToken: string) => {
-    const { categoriesData, cycleData, historyData, progressData } = await fetchAllHabitState();
+    const { categoriesData, cycleData, progressData } = await fetchAllHabitState();
     setCategories(categoriesData);
     setActiveCycle(cycleData);
-    setCycleHistory(historyData);
     setProgress(progressData);
     setSelectedDayNumber(null);
     setError(null);
@@ -85,11 +80,10 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const syncFromServer = async () => {
       try {
-        const { categoriesData, cycleData, historyData, progressData } = await fetchAllHabitState();
+        const { categoriesData, cycleData, progressData } = await fetchAllHabitState();
         if (cancelled) return;
         setCategories(categoriesData);
         setActiveCycle(cycleData);
-        setCycleHistory(historyData);
         setProgress(progressData);
         setSelectedDayNumber(null);
         setError(null);
@@ -129,12 +123,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const refreshProgress = useCallback(async () => {
     if (!token) return;
-    const [progressData, historyData] = await Promise.all([
-      fetchCycleProgress('current'),
-      fetchCycleHistory(),
-    ]);
-    setProgress(progressData);
-    setCycleHistory(historyData);
+    setProgress(await fetchCycleProgress('current'));
   }, [token]);
 
   const startSprint = useCallback(
@@ -182,7 +171,6 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const effectiveCategories = useMemo(() => (token ? categories : []), [token, categories]);
   const effectiveActiveCycle = useMemo(() => (token ? activeCycle : null), [token, activeCycle]);
-  const effectiveCycleHistory = useMemo(() => (token ? cycleHistory : []), [token, cycleHistory]);
   const effectiveProgress = useMemo(() => (token ? progress : null), [token, progress]);
   const effectiveSelectedDay = token ? selectedDayNumber : null;
   const effectiveError = token ? error : null;
@@ -228,7 +216,6 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     () => ({
       categories: effectiveCategories,
       activeCycle: effectiveActiveCycle,
-      cycleHistory: effectiveCycleHistory,
       progress: effectiveProgress,
       todayLog,
       tomorrowLog,
@@ -249,7 +236,6 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     [
       effectiveCategories,
       effectiveActiveCycle,
-      effectiveCycleHistory,
       effectiveProgress,
       todayLog,
       tomorrowLog,

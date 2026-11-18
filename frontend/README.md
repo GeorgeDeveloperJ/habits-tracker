@@ -81,3 +81,7 @@ export default defineConfig([
   },
 ])
 ```
+
+## Production API routing
+
+The production build uses `/api` on the frontend origin unless `VITE_API_URL` is set at build time. Configure a same-origin proxy for `/api`, or set `VITE_API_URL` to the HTTPS API base URL and allow the frontend origin in the backend CORS configuration. Serve `index.html` for direct visits to client routes such as `/reset-password`.

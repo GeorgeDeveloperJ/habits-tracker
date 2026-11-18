@@ -1,7 +1,7 @@
 import { translateFeedback } from '../../i18n/messages';
 import { useLanguage } from '../../i18n/useLanguage';
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,8 +16,8 @@ import { Button } from '../ui/button';
 
 export default function ResetPassword() {
   const { language, t } = useLanguage();
-  const [searchParams] = useSearchParams();
-  const paramToken = searchParams.get('token') ?? '';
+  const { hash } = useLocation();
+  const paramToken = new URLSearchParams(hash.slice(1)).get('token') ?? '';
 
   const [manualToken, setManualToken] = useState<string | null>(null);
   const resetToken = manualToken ?? paramToken;

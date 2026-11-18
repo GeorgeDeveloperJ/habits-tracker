@@ -75,8 +75,8 @@ All responses use standard JSON envelopes `{ success: boolean, message?: string,
      - Request: `{ email: string }` (Zod validated: trimmed non-empty valid email; `400` on invalid email).
      - Behavior: Case-insensitive lookup (`equals: email, mode: 'insensitive'`). If user exists, invalidates prior unused `PasswordResetToken` rows for `user.id`, generates 32-byte CSPRNG `rawToken`, stores SHA-256 `tokenHash` with `expiresAt` (`PASSWORD_RESET_TTL_MINUTES` or 15 min).
      - Response (`200` always for valid email format to prevent enumeration in production):
-       - In non-production / test (`NODE_ENV !== 'production' || EXPOSE_RESET_TOKEN === 'true'`) when user exists: `{ "success": true, "message": "If an account with that email exists, password reset instructions have been generated.", "data": { "resetToken": "<hex>", "expiresAt": "<iso>" } }`.
-       - Otherwise (production or unregistered email): `{ "success": true, "message": "If an account with that email exists, password reset instructions have been generated.", "data": null }`.
+       - When recovery is configured, the API returns the same success response with `data: null` for registered and unregistered addresses. The token is delivered only through email.
+       - When recovery is disabled, the endpoint responds with HTTP 503.
    - `POST /api/auth/reset-password`:
      - Request: `{ token: string, password: string }` (Zod validated: trimmed non-empty `token`, `password` min 6 chars; `400` on validation failure).
      - Behavior: Inside `prisma.$transaction`, looks up SHA-256 `tokenHash`, verifies `usedAt === null && expiresAt > now`, atomically claims token (`updateMany` where `usedAt: null, expiresAt: { gt: now }`), updates `User.hashedPassword` via `bcrypt.hash(password, 10)`, invalidates remaining unused tokens for user.

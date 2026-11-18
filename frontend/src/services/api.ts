@@ -27,7 +27,6 @@ export interface CycleSummary {
 }
 
 export interface CycleHistoryItem extends Cycle {
-  logs: DailyLog[];
   summary: CycleSummary;
 }
 
@@ -122,32 +121,8 @@ export interface InitialGoalInput {
   description: string;
 }
 
-export interface ForgotPasswordResult {
-  resetToken?: string;
-  expiresAt?: string;
-  message?: string;
-}
-
-// ==========================================
-// Auth & Password Recovery
-// ==========================================
-
-export const requestPasswordReset = async (
-  email: string
-): Promise<ForgotPasswordResult | null> => {
-  const response = await apiClient.post('/auth/forgot-password', {
-    email: email.trim(),
-  });
-  const data = response.data?.data as { resetToken?: string; expiresAt?: string } | null;
-  const message = response.data?.message as string | undefined;
-  if (!data) {
-    return message ? { message } : null;
-  }
-  return {
-    resetToken: data.resetToken,
-    expiresAt: data.expiresAt,
-    message,
-  };
+export const requestPasswordReset = async (email: string): Promise<void> => {
+  await apiClient.post('/auth/forgot-password', { email: email.trim() });
 };
 
 export const resetPassword = async (payload: {
@@ -183,9 +158,17 @@ export const fetchActiveCycle = async (): Promise<Cycle | null> => {
   return response.data?.data ?? null;
 };
 
-export const fetchCycleHistory = async (): Promise<CycleHistoryItem[]> => {
-  const response = await apiClient.get('/cycles/history');
-  return response.data?.data ?? [];
+export interface CycleHistoryPage {
+  data: CycleHistoryItem[];
+  nextCursor: string | null;
+}
+
+export const fetchCycleHistory = async (cursor?: string, signal?: AbortSignal): Promise<CycleHistoryPage> => {
+  const response = await apiClient.get<CycleHistoryPage>('/cycles/history', {
+    params: cursor ? { cursor } : undefined,
+    signal,
+  });
+  return response.data;
 };
 
 export const startNewCycle = async (

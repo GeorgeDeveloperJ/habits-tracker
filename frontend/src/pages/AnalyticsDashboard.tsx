@@ -13,7 +13,7 @@ import {
   Rocket,
 } from 'lucide-react';
 import { useHabits } from '../context/useHabits';
-import { fetchCycleProgress, type CycleProgressResponse } from '../services/api';
+import { fetchCycleHistory, fetchCycleProgress, type CycleHistoryPage, type CycleProgressResponse } from '../services/api';
 import { getPillarMeta } from '../lib/pillars';
 import {
   CapsuleBarChart,
@@ -22,7 +22,7 @@ import {
   type CapsuleBarDatum,
 } from '../components/charts/HardwareViz';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { ButtonLink } from '../components/ui/button';
+import { Button, ButtonLink } from '../components/ui/button';
 import {
   Table,
   TableBody,
@@ -34,13 +34,38 @@ import {
 
 export default function AnalyticsDashboard() {
   const { language, locale, t, formatPercent } = useLanguage();
-  const { activeCycle, cycleHistory, progress: currentProgress, loading, categories } = useHabits();
+  const { activeCycle, progress: currentProgress, loading, categories } = useHabits();
   const [selectedCycleId, setSelectedCycleId] = useState<string>('current');
   const [historicalState, setHistoricalState] = useState<{
     cycleId: string;
     data: CycleProgressResponse | null;
   } | null>(null);
   const [balanceView, setBalanceView] = useState<'capsules' | 'matrix'>('capsules');
+
+  const [history, setHistory] = useState<CycleHistoryPage | null>(null);
+  const [historyRequest, setHistoryRequest] = useState<{ cursor?: string } | null>({});
+  const [historyError, setHistoryError] = useState(false);
+  const cycleHistory = history?.data ?? [];
+
+  useEffect(() => {
+    if (!historyRequest) return;
+    const controller = new AbortController();
+    fetchCycleHistory(historyRequest.cursor, controller.signal)
+      .then((page) => {
+        if (controller.signal.aborted) return;
+        setHistory(previous => historyRequest.cursor && previous
+          ? { ...page, data: [...previous.data, ...page.data] }
+          : page);
+        setHistoryError(false);
+        setHistoryRequest(null);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setHistoryError(true);
+        setHistoryRequest(null);
+      });
+    return () => controller.abort();
+  }, [historyRequest]);
 
   useEffect(() => {
     if (selectedCycleId === 'current') return;
@@ -150,7 +175,7 @@ export default function AnalyticsDashboard() {
     });
   }, [dailySeries, t]);
 
-  if (loading) {
+  if (loading || (!activeCycle && !history && historyRequest)) {
     return (
       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-8 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
@@ -166,7 +191,7 @@ export default function AnalyticsDashboard() {
     );
   }
 
-  if (!displayedProgress && cycleHistory.length === 0 && !activeCycle) {
+  if (!displayedProgress && history && cycleHistory.length === 0 && !activeCycle) {
     return (
       <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-8 text-center">
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#E6FA72] text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
@@ -234,13 +259,25 @@ export default function AnalyticsDashboard() {
               className="h-9 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-4 font-mono-tabular text-xs font-semibold text-[var(--text-primary)] focus:border-[#121212] focus:outline-none dark:focus:border-orchid"
             >
               {activeCycle && <option value="current">{t("Current Active Sprint")}</option>}
-              {cycleHistory.map((c, idx) => (
+              {cycleHistory.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {t('Sprint #{0} ({1})', cycleHistory.length - idx, new Date(c.startDate).toLocaleDateString(locale))}
+                  {t('Sprint starting {0}', new Date(c.startDate).toLocaleDateString(locale))}
                   {c.isActive ? t(" · Active") : ''}
                 </option>
               ))}
             </select>
+          )}
+          {(historyError || history?.nextCursor) && (
+            <Button
+              variant="outline"
+              disabled={Boolean(historyRequest)}
+              onClick={() => {
+                setHistoryError(false);
+                setHistoryRequest({ cursor: history?.nextCursor ?? undefined });
+              }}
+            >
+              {historyError ? t('Retry loading sprint history') : t('Load older sprints')}
+            </Button>
           )}
         </div>
       </div>
