@@ -4,7 +4,8 @@ const corsOptions = {
     origin: [
         'http://localhost:5173',
         'https://habits-tracker-flame.vercel.app',
-        'https://habitstracker-web.vercel.app'
+        'https://habitstracker-web.vercel.app',
+        'https://habits-tracker-git-dev-george-santana-s-projects.vercel.app'
     ],
     methods: 'GET,POST,PUT,PATCH,DELETE',
     credentials: true

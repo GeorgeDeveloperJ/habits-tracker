@@ -151,6 +151,23 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
   // =========================================================================
   describe('Tier 1: Happy-Path Tests', () => {
     describe('Auth & Habit Categories (FIX-03a, FIX-04)', () => {
+      it('allows password recovery preflight from the dev frontend and rejects unrelated origins', async () => {
+        const stagingOrigin = 'https://habits-tracker-git-dev-george-santana-s-projects.vercel.app';
+        const preflight = (origin: string) => fetch(`${baseUrl}/api/auth/forgot-password`, {
+          method: 'OPTIONS',
+          headers: {
+            Origin: origin,
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'content-type',
+          },
+        });
+        const allowed = await preflight(stagingOrigin);
+        assert.equal(allowed.status, 204);
+        assert.equal(allowed.headers.get('access-control-allow-origin'), stagingOrigin);
+        const denied = await preflight('https://unrelated.example.test');
+        assert.equal(denied.headers.get('access-control-allow-origin'), null);
+      });
+
       it('T1-AUTH-01: registers user and returns 201 with { token, id, email }', async () => {
         const email = uniqueEmail('t1_reg');
         const res = await apiRequest<{
