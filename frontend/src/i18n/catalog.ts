@@ -360,5 +360,20 @@ export const spanish = {
   "String must contain at most 500 character(s)": "La descripción debe tener 500 caracteres como máximo.",
   "Goal description cannot be empty": "Escribe una descripción para la meta.",
   "Validation failed": "Revisa los datos e inténtalo de nuevo.",
-  "No daily log found to associate the action with": "No se encontró un registro diario para esta acción."
+  "No daily log found to associate the action with": "No se encontró un registro diario para esta acción.",
+  "Hardware Telemetry Stamps": "Sellos de progreso",
+  "Sprint Milestone Badges": "Insignias del ciclo",
+  "Unlocked": "Desbloqueadas",
+  "First Lock": "Primer cierre",
+  "Close your first day with tomorrow planned": "Cierra tu primer día con el mañana planificado",
+  "7-Day Ignition": "Impulso de 7 días",
+  "Reach a 7-day cadence or 7 closed days": "Alcanza una racha de 7 días o 7 días cerrados",
+  "Full Gatekeeper": "8 de 8 listos",
+  "Plan all 8 pillars for tomorrow in one lock": "Planifica los 8 pilares de mañana en un cierre",
+  "Halfway Telemetry": "Mitad del ciclo",
+  "Log 16 days inside a 31-day sprint": "Registra 16 días dentro de un ciclo de 31 días",
+  "21-Day Neural Lock": "Hábito de 21 días",
+  "Sustain a 21-day streak or 21 closed days": "Mantén una racha de 21 días o 21 días cerrados",
+  "31-Day Finisher": "Ciclo 31 completo",
+  "Seal a complete 31-day sprint cycle": "Completa y cierra un ciclo entero de 31 días"
 } as const;

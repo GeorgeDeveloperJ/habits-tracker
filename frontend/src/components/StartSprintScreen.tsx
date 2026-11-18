@@ -13,6 +13,7 @@ import { useHabits } from '../context/useHabits';
 import { getPillarMeta } from '../lib/pillars';
 import type { InitialGoalInput } from '../services/api';
 import { DotMatrixRibbon, SegmentedBattery } from './charts/HardwareViz';
+import { SprintLaunchGlyph } from './icons/BrandMark';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -97,7 +98,7 @@ const StartSprintScreen: React.FC = () => {
             <h1 className="mt-2.5 text-4xl sm:text-[44px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
               {t("Commit to Your")}{' '}
               <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
-                <Rocket className="h-5 w-5 stroke-[2.3]" />
+                <SprintLaunchGlyph className="h-5 w-5" />
               </span>{' '}
               {t("31-Day Sprint")}
             </h1>

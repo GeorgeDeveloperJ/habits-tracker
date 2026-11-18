@@ -12,8 +12,8 @@ import {
   Moon,
   Sun,
   X,
-  Zap,
 } from 'lucide-react';
+import { Proactive31Mark } from './icons/BrandMark';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { useHabits } from '../context/useHabits';
@@ -67,7 +67,7 @@ export default function AppLayout() {
             >
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FA72] text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
-                  <Zap className="h-4 w-4 stroke-[2.5]" />
+                  <Proactive31Mark className="h-6 w-6" />
                 </div>
                 {!collapsed && (
                   <div className="min-w-0">
@@ -206,7 +206,7 @@ export default function AppLayout() {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 md:hidden">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
-                  <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
+                  <Proactive31Mark className="h-5 w-5" />
                 </div>
                 <span className="hidden min-[400px]:inline text-sm font-bold tracking-tight">Proactive31</span>
               </div>

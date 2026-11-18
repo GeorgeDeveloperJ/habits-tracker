@@ -4,7 +4,6 @@ import React, { useMemo, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
-  Award,
   Check,
   CheckCircle2,
   Clock,
@@ -17,8 +16,9 @@ import {
   Sparkles,
   Trash2,
   X,
-  Zap,
 } from 'lucide-react';
+import { CommandDialGlyph } from './icons/BrandMark';
+import { SprintFinisherSeal } from './icons/MilestoneBadges';
 import { useHabits } from '../context/useHabits';
 import { getPillarMeta } from '../lib/pillars';
 import type { PlannedAction } from '../services/api';
@@ -265,7 +265,7 @@ const HabitGrid: React.FC = () => {
             <h1 className="text-4xl sm:text-[44px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
               {t("Daily")}{' '}
               <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
-                <Zap className="h-5 w-5 stroke-[2.3]" />
+                <CommandDialGlyph className="h-5 w-5" />
               </span>{' '}
               {t("Command")}
             </h1>
@@ -319,10 +319,8 @@ const HabitGrid: React.FC = () => {
       {isDay31Completed && (
         <Card variant="emerald" className="p-6 sm:p-7">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#121212] text-complete dark:bg-complete dark:text-[#0D0914]">
-                <Award className="h-6 w-6" />
-              </div>
+            <div className="flex items-center gap-4">
+              <SprintFinisherSeal className="h-16 w-16 shrink-0" />
               <div>
                 <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] opacity-75">
                   {t("Sprint Milestone Complete")}

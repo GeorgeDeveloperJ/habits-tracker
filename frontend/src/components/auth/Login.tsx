@@ -12,8 +12,8 @@ import {
   Moon,
   Sparkles,
   Sun,
-  Zap,
 } from 'lucide-react';
+import { HorizonGlyph, Proactive31Mark } from '../icons/BrandMark';
 import apiClient from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -45,7 +45,7 @@ export function AuthShowcasePanel() {
         <div className="flex items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-3.5 py-1.5 dark:bg-[#1E1730]">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
-              <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
+              <Proactive31Mark className="h-4 w-4" />
             </span>
             <span className="text-xs font-bold tracking-tight">Proactive31</span>
           </div>
@@ -58,7 +58,7 @@ export function AuthShowcasePanel() {
           <h2 className="text-[42px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
             {t("Plan")}{' '}
             <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
-              <Zap className="h-5 w-5 stroke-[2.4]" />
+              <HorizonGlyph className="h-5 w-5" />
             </span>{' '}
             {t("Tonight.")}
             <span className="block text-[var(--text-secondary)]">{t("Execute Tomorrow.")}</span>
@@ -137,7 +137,7 @@ export function AuthThemeToggleBar() {
     <div className="mb-6 flex items-center justify-between gap-3 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-3.5 py-2">
       <div className="flex items-center gap-2">
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
-          <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
+          <Proactive31Mark className="h-4.5 w-4.5" />
         </span>
         <span className="text-xs font-bold tracking-tight">Proactive31</span>
       </div>
