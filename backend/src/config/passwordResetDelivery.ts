@@ -2,6 +2,20 @@ import nodemailer from 'nodemailer';
 
 export type PasswordResetDelivery = (email: string, token: string, expiresAt: Date) => Promise<void>;
 
+const smtpErrorCodes = new Set([
+    'EAUTH', 'ECONNECTION', 'ECONNREFUSED', 'ECONNRESET', 'EDNS', 'EENVELOPE',
+    'EMESSAGE', 'EPROTOCOL', 'ESOCKET', 'ETIMEDOUT', 'ETLS', 'EURL'
+]);
+
+export function passwordResetDeliveryErrorCode(error: unknown): string {
+    if (!(error instanceof Error)) return 'unknown';
+    const { code, responseCode } = error as Error & { code?: unknown; responseCode?: unknown };
+    const safeCode = typeof code === 'string' && smtpErrorCodes.has(code) ? code : 'unknown';
+    return typeof responseCode === 'number' && Number.isInteger(responseCode) && responseCode >= 400 && responseCode <= 599
+        ? `${safeCode}, SMTP ${responseCode}`
+        : safeCode;
+}
+
 export function configurePasswordResetDelivery(env: NodeJS.ProcessEnv): PasswordResetDelivery | undefined {
     const { SMTP_URL, PASSWORD_RESET_FROM, PUBLIC_APP_URL } = env;
     if (!SMTP_URL && !PASSWORD_RESET_FROM && !PUBLIC_APP_URL) return undefined;

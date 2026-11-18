@@ -4,7 +4,7 @@ import { prisma } from '../config/db';
 import { hash, compare } from 'bcrypt';
 import { sign } from 'jsonwebtoken';
 import logger from '../config/logger';
-import type { PasswordResetDelivery } from '../config/passwordResetDelivery';
+import { passwordResetDeliveryErrorCode, type PasswordResetDelivery } from '../config/passwordResetDelivery';
 
 const hashResetToken = (token: string): string => {
     return crypto.createHash('sha256').update(token).digest('hex');
@@ -140,8 +140,8 @@ export const forgotPassword = async ( req: Request, res: Response ) => {
         });
 
         res.status(200).json({ success: true, message, data: null });
-        void deliver(user.email, rawToken, expiresAt).catch(async () => {
-            logger.error('Password reset email delivery failed');
+        void deliver(user.email, rawToken, expiresAt).catch(async (error: unknown) => {
+            logger.error(`Password reset email delivery failed (${passwordResetDeliveryErrorCode(error)})`);
             await prisma.passwordResetToken.updateMany({
                 where: { tokenHash, usedAt: null },
                 data: { usedAt: new Date() }
