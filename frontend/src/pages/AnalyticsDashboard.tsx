@@ -21,6 +21,7 @@ import {
   SegmentedBattery,
   type CapsuleBarDatum,
 } from '../components/charts/HardwareViz';
+import { SprintMilestonesCard } from '../components/icons/MilestoneBadges';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button, ButtonLink } from '../components/ui/button';
 import {
@@ -648,6 +649,19 @@ export default function AnalyticsDashboard() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Row 4: Hardware Telemetry Milestone Stamps */}
+          <SprintMilestonesCard
+            metrics={{
+              closedDays: stats?.closedDays ?? 0,
+              daysLogged: stats?.daysLogged ?? 0,
+              bestStreak: stats?.bestStreak ?? 0,
+              overallRate,
+              hasPerfectGatekeeper:
+                tomorrowPlannedCount >= totalPillars || (stats?.closedDays ?? 0) >= 1,
+              completedCyclesCount: cycleHistory.filter((c) => !c.isActive).length,
+            }}
+          />
         </>
       )}
     </div>

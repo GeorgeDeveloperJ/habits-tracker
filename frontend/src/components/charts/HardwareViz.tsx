@@ -572,15 +572,20 @@ export interface PillarCompassDiagramProps {
   className?: string;
 }
 
-const COMPASS_COORDS: Array<{ xPct: number; yPct: number }> = [
-  { xPct: 50, yPct: 11 }, // Top: Learning
-  { xPct: 81, yPct: 24 }, // Top-Right: Physical
-  { xPct: 88, yPct: 50 }, // Right: Nutrition
-  { xPct: 81, yPct: 76 }, // Bottom-Right: Mindfulness
-  { xPct: 50, yPct: 89 }, // Bottom: Focus
-  { xPct: 19, yPct: 76 }, // Bottom-Left: Finance
-  { xPct: 12, yPct: 50 }, // Left: Order
-  { xPct: 19, yPct: 24 }, // Top-Left: Rest
+interface CompassSlot {
+  style: React.CSSProperties;
+  isSide: boolean;
+}
+
+const COMPASS_SLOTS: CompassSlot[] = [
+  { style: { top: '6%', left: '50%', transform: 'translateX(-50%)' }, isSide: false }, // Top: Learning
+  { style: { top: '23%', right: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Top-Right: Physical
+  { style: { top: '50%', right: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Right: Nutrition
+  { style: { top: '77%', right: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Bottom-Right: Mindfulness
+  { style: { bottom: '6%', left: '50%', transform: 'translateX(-50%)' }, isSide: false }, // Bottom: Focus
+  { style: { top: '77%', left: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Bottom-Left: Finance
+  { style: { top: '50%', left: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Left: Order
+  { style: { top: '23%', left: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Top-Left: Rest
 ];
 
 export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
@@ -685,26 +690,26 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
       {/* Frosted Glass Stadium Pill Overlays */}
       {CORE_PILLARS.map((pillar, idx) => {
         const Icon = pillar.icon;
-        const coord = COMPASS_COORDS[idx] ?? { xPct: 50, yPct: 50 };
+        const slot = COMPASS_SLOTS[idx] ?? {
+          style: { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
+          isSide: false,
+        };
         const isActive = idx === activePillarIndex;
 
         return (
           <div
             key={pillar.name}
-            style={{
-              left: `${coord.xPct}%`,
-              top: `${coord.yPct}%`,
-              transform: 'translate(-50%, -50%)',
-            }}
+            style={slot.style}
             className={cn(
-              'glass-pill absolute inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
+              'glass-pill absolute inline-flex w-max items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors xl:text-[11px]',
+              slot.isSide ? 'max-w-[44%]' : 'max-w-[85%]',
               isActive
                 ? 'border-[#121212] bg-[#E6FA72]/90 text-[#121212] dark:border-orchid dark:bg-orchid/90 dark:text-[#0D0914]'
                 : 'text-[var(--text-primary)]'
             )}
           >
             <Icon className="h-3 w-3 shrink-0" />
-            <span className="whitespace-nowrap">{translatePillarText(language, pillar.shortName)}</span>
+            <span className="min-w-0 truncate">{translatePillarText(language, pillar.shortName)}</span>
           </div>
         );
       })}
