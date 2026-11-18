@@ -1,39 +1,26 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   ArrowRight,
+  BarChart3,
   Calendar,
   CheckCircle2,
   Clock,
   Flame,
   Loader2,
   Rocket,
-  Target,
-  TrendingUp,
 } from 'lucide-react';
 import { useHabits } from '../context/useHabits';
 import { fetchCycleProgress, type CycleProgressResponse } from '../services/api';
 import { getPillarMeta } from '../lib/pillars';
+import {
+  CapsuleBarChart,
+  ConcentricRing,
+  SegmentedBattery,
+  type CapsuleBarDatum,
+} from '../components/charts/HardwareViz';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
+import { ButtonLink } from '../components/ui/button';
 import {
   Table,
   TableBody,
@@ -44,93 +31,160 @@ import {
 } from '../components/ui/table';
 
 export default function AnalyticsDashboard() {
-  const { activeCycle, cycleHistory, progress: currentProgress, loading } = useHabits();
+  const { activeCycle, cycleHistory, progress: currentProgress, loading, categories } = useHabits();
   const [selectedCycleId, setSelectedCycleId] = useState<string>('current');
-  const [historicalProgress, setHistoricalProgress] = useState<CycleProgressResponse | null>(null);
-  const [loadingCycle, setLoadingCycle] = useState(false);
-  const [balanceView, setBalanceView] = useState<'radar' | 'bar'>('radar');
+  const [historicalState, setHistoricalState] = useState<{
+    cycleId: string;
+    data: CycleProgressResponse | null;
+  } | null>(null);
+  const [balanceView, setBalanceView] = useState<'capsules' | 'matrix'>('capsules');
 
   useEffect(() => {
+    if (selectedCycleId === 'current') return;
     let cancelled = false;
 
-    const loadSelected = async () => {
-      if (selectedCycleId === 'current') {
-        setHistoricalProgress(null);
-        return;
-      }
-      try {
-        setLoadingCycle(true);
-        const data = await fetchCycleProgress(selectedCycleId);
+    fetchCycleProgress(selectedCycleId)
+      .then((data) => {
         if (!cancelled) {
-          setHistoricalProgress(data);
+          setHistoricalState({ cycleId: selectedCycleId, data });
         }
-      } catch (err) {
+      })
+      .catch((err) => {
         console.error('Failed to load cycle analytics:', err);
-      } finally {
         if (!cancelled) {
-          setLoadingCycle(false);
+          setHistoricalState({ cycleId: selectedCycleId, data: null });
         }
-      }
-    };
+      });
 
-    void loadSelected();
     return () => {
       cancelled = true;
     };
   }, [selectedCycleId]);
 
+  const loadingCycle =
+    selectedCycleId !== 'current' && historicalState?.cycleId !== selectedCycleId;
+
   const displayedProgress =
-    selectedCycleId === 'current' ? currentProgress : historicalProgress;
+    selectedCycleId === 'current'
+      ? currentProgress
+      : historicalState?.cycleId === selectedCycleId
+      ? historicalState.data
+      : null;
+
+  const stats = displayedProgress?.stats;
+  const pillarStats = useMemo(
+    () => displayedProgress?.pillarStats ?? [],
+    [displayedProgress]
+  );
+  const dailySeries = useMemo(
+    () => displayedProgress?.dailySeries ?? [],
+    [displayedProgress]
+  );
+  const recentActivity = displayedProgress?.recentActivity ?? [];
+
+  const totalPillars = categories.length || 8;
+  const overallRate = stats?.overallCompletionRate ?? 0;
+  const todayPlannedCount = stats?.todayPlannedCount ?? 0;
+  const todayCompletedCount = stats?.todayCompletedCount ?? 0;
+  const todayRate =
+    todayPlannedCount > 0 ? Math.round((todayCompletedCount / todayPlannedCount) * 100) : 0;
+  const tomorrowPlannedCount = stats?.tomorrowPlannedCount ?? 0;
+
+  const pillarCapsuleData: CapsuleBarDatum[] = useMemo(
+    () =>
+      pillarStats.map((p) => {
+        const meta = getPillarMeta(p.categoryName);
+        return {
+          id: p.categoryId,
+          label: meta.shortName,
+          value: p.completionRate,
+          max: 100,
+          state:
+            p.plannedCount === 0
+              ? 'hatched'
+              : p.completionRate >= 75
+              ? 'closed'
+              : 'active',
+          meta: `${p.completedCount}/${p.plannedCount} · ${p.currentStreak}d streak`,
+        };
+      }),
+    [pillarStats]
+  );
+
+  const trendCapsuleData: CapsuleBarDatum[] = useMemo(() => {
+    const byDay = new Map(dailySeries.map((d) => [d.dayNumber, d]));
+    return Array.from({ length: 31 }, (_, idx) => {
+      const dayNumber = idx + 1;
+      const point = byDay.get(dayNumber);
+      const label = String(dayNumber).padStart(2, '0');
+      if (!point) {
+        return {
+          id: dayNumber,
+          label,
+          value: 0,
+          max: 100,
+          state: 'projected',
+          meta: 'Projected',
+        };
+      }
+      const state: CapsuleBarDatum['state'] = point.isClosed
+        ? 'closed'
+        : point.isToday
+        ? 'today'
+        : point.isTomorrow
+        ? 'tomorrow'
+        : point.planned === 0
+        ? 'hatched'
+        : 'active';
+      return {
+        id: dayNumber,
+        label,
+        value: point.completionRate,
+        max: 100,
+        state,
+        meta: `${point.completed}/${point.planned} done`,
+      };
+    });
+  }, [dailySeries]);
 
   if (loading) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center gap-3">
-        <Loader2 className="h-10 w-10 animate-spin text-[#8B5CF6]" />
-        <p className="text-sm text-[#94A3B8]">Aggregating 8-Pillar analytics...</p>
+      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-8 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+        <p className="mt-4 font-mono-tabular text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          Aggregating Hardware Telemetry
+        </p>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          Computing 8-Pillar balance and 31-day sprint cadence...
+        </p>
       </div>
     );
   }
 
   if (!displayedProgress && cycleHistory.length === 0 && !activeCycle) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-[#1E2330] bg-[#11131C] p-8 text-center">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#7C3AED]/15 text-[#8B5CF6] border border-[#8B5CF6]/30">
-          <Rocket className="h-7 w-7" />
+      <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-8 text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+          <Rocket className="h-6 w-6" />
         </div>
-        <h1 className="text-2xl font-bold text-[#F8FAFC]">No Sprint Analytics Yet</h1>
-        <p className="mt-2 max-w-md text-sm text-[#94A3B8]">
-          Launch your first 31-day sprint in the Command Center to start tracking 8-pillar balance and daily consistency.
+        <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+          Telemetry Standby
         </p>
-        <Link to="/" className="mt-6">
-          <Button size="lg">
-            Go to Sprint Launchpad
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+          No Sprint Analytics Yet
+        </h1>
+        <p className="mt-2 max-w-md text-sm text-[var(--text-secondary)]">
+          Launch your first 31-day sprint in the Command Center to unlock 8-pillar balance and daily hardware telemetry.
+        </p>
+        <ButtonLink to="/" size="lg" className="mt-6">
+          Go to Sprint Launchpad
+          <ArrowRight className="h-4 w-4" />
+        </ButtonLink>
       </div>
     );
   }
-
-  const stats = displayedProgress?.stats;
-  const pillarStats = displayedProgress?.pillarStats ?? [];
-  const dailySeries = displayedProgress?.dailySeries ?? [];
-  const recentActivity = displayedProgress?.recentActivity ?? [];
-
-  const radarData = pillarStats.map((p) => ({
-    pillar: getPillarMeta(p.categoryName).shortName,
-    fullName: p.categoryName,
-    completionRate: p.completionRate,
-    completedCount: p.completedCount,
-    plannedCount: p.plannedCount,
-  }));
-
-  const trendData = dailySeries.map((d) => ({
-    day: `D${String(d.dayNumber).padStart(2, '0')}`,
-    Planned: d.planned,
-    Completed: d.completed,
-    Skipped: d.skipped,
-    Rate: d.completionRate,
-  }));
 
   const dateRangeLabel = stats
     ? `${new Date(stats.startDate).toLocaleDateString('en-US', {
@@ -144,22 +198,29 @@ export default function AnalyticsDashboard() {
     : 'Active Sprint';
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4">
+      {/* Editorial Telemetry Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC]">
-            Analytics &amp; Pillar Balance
+          <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            31-Day Sprint Diagnostics · Live Pillar Readout
+          </p>
+          <h1 className="mt-2 text-4xl sm:text-[44px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
+            Hardware{' '}
+            <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+              <BarChart3 className="h-5 w-5 stroke-[2.3]" />
+            </span>{' '}
+            Telemetry
           </h1>
-          <p className="mt-1 text-sm text-[#94A3B8]">
-            Real-time consistency telemetry across your 8 Core Pillars and 31-day sprint cadence.
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            Real-time consistency across your 8 Core Pillars and 31-day sprint cadence.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center gap-2 rounded-xl border border-[#1E2330] bg-[#11131C] px-3.5 py-2 text-xs text-[#94A3B8]">
-            <Calendar className="h-3.5 w-3.5 text-[#8B5CF6]" />
-            <span className="font-mono-tabular">{dateRangeLabel}</span>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-4 py-2 text-xs text-[var(--text-secondary)]">
+            <Calendar className="h-3.5 w-3.5 text-[var(--text-primary)]" />
+            <span className="font-mono-tabular font-medium">{dateRangeLabel}</span>
           </div>
 
           {cycleHistory.length > 0 && (
@@ -167,7 +228,7 @@ export default function AnalyticsDashboard() {
               aria-label="Select sprint cycle"
               value={selectedCycleId}
               onChange={(e) => setSelectedCycleId(e.target.value)}
-              className="h-9 rounded-xl border border-[#1E2330] bg-[#11131C] px-3 text-xs font-medium text-[#F8FAFC] focus:border-[#8B5CF6] focus:outline-none"
+              className="h-9 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-4 font-mono-tabular text-xs font-semibold text-[var(--text-primary)] focus:border-[#121212] focus:outline-none dark:focus:border-[#D96BFF]"
             >
               {activeCycle && <option value="current">Current Active Sprint</option>}
               {cycleHistory.map((c, idx) => (
@@ -182,332 +243,321 @@ export default function AnalyticsDashboard() {
       </div>
 
       {loadingCycle ? (
-        <div className="flex min-h-[300px] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#8B5CF6]" />
+        <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-8">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--text-primary)]" />
+          <p className="mt-3 font-mono-tabular text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            Loading Historical Cycle
+          </p>
         </div>
       ) : (
         <>
-          {/* Row 1: 4 Live KPI Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardContent className="p-5 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+          {/* Row 1: Asymmetrical Bento KPI Cluster */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            {/* Hero Accent Completion Card (lg:col-span-5) */}
+            <Card variant="accent" className="flex flex-col justify-between p-6 sm:p-7 lg:col-span-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <span className="font-mono-tabular text-[10px] font-bold uppercase tracking-[0.14em] opacity-75">
                     Overall Completion
                   </span>
-                  <div className="rounded-lg bg-[#7C3AED]/15 p-2 text-[#8B5CF6]">
-                    <TrendingUp className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="font-mono-tabular text-3xl font-bold text-[#F8FAFC]">
-                    {stats?.overallCompletionRate ?? 0}%
+                  <p className="mt-3 font-mono-tabular text-[48px] font-semibold leading-none tracking-[-0.04em]">
+                    {overallRate}%
                   </p>
-                  <p className="mt-1 text-xs text-[#10B981]">
-                    {stats?.closedDays ?? 0} day{(stats?.closedDays ?? 0) === 1 ? '' : 's'} closed
+                  <p className="mt-2 font-mono-tabular text-xs font-semibold opacity-80">
+                    {stats?.closedDays ?? 0} day{(stats?.closedDays ?? 0) === 1 ? '' : 's'} closed ·{' '}
+                    {stats?.daysLogged ?? 0} logged
                   </p>
                 </div>
-              </CardContent>
+
+                <ConcentricRing
+                  percentage={overallRate}
+                  secondaryPercentage={todayRate}
+                  size={116}
+                  strokeWidth={11}
+                  variant="accent"
+                  sublabel="RATE"
+                />
+              </div>
+
+              <div className="mt-6 flex items-center justify-between border-t border-black/10 pt-4 font-mono-tabular text-[11px] font-semibold">
+                <span>TODAY COMPLETION: {todayRate}%</span>
+                <span>BEST STREAK: {stats?.bestStreak ?? 0}D</span>
+              </div>
             </Card>
 
-            <Card>
-              <CardContent className="p-5 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+            {/* Right Asymmetrical 2+1 KPI Cluster (lg:col-span-7) */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">
+              <Card variant="default" className="flex flex-col justify-between p-6">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                     Actions Completed
                   </span>
-                  <div className="rounded-lg bg-[#10B981]/15 p-2 text-[#10B981]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5CE68A] text-[#121212]">
                     <CheckCircle2 className="h-4 w-4" />
-                  </div>
+                  </span>
                 </div>
                 <div className="mt-4">
-                  <p className="font-mono-tabular text-3xl font-bold text-[#F8FAFC]">
+                  <p className="font-mono-tabular text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
                     {stats?.completedActions ?? 0}
-                    <span className="text-lg font-medium text-[#64748B]">
+                    <span className="text-lg font-medium text-[var(--text-muted)]">
                       {' '}
                       / {stats?.totalActions ?? 0}
                     </span>
                   </p>
-                  <p className="mt-1 text-xs text-[#94A3B8]">
+                  <p className="mt-1.5 font-mono-tabular text-xs text-[var(--text-secondary)]">
                     {stats?.skippedActions ?? 0} pending or skipped
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </Card>
 
-            <Card>
-              <CardContent className="p-5 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+              <Card variant="sand" className="flex flex-col justify-between p-6">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                     Sprint &amp; Streak
                   </span>
-                  <div className="rounded-lg bg-[#F59E0B]/15 p-2 text-[#F59E0B]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#121212] text-[#F5B841] dark:bg-[#0D0914]">
                     <Flame className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="font-mono-tabular text-3xl font-bold text-[#F8FAFC]">
-                    Day {String(stats?.currentDayNumber ?? 1).padStart(2, '0')}
-                    <span className="text-lg font-medium text-[#64748B]"> / 31</span>
-                  </p>
-                  <p className="mt-1 font-mono-tabular text-xs text-[#F59E0B]">
-                    {stats?.currentStreak ?? 0}d current · {stats?.bestStreak ?? 0}d best streak
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-5 flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
-                    Tomorrow Readiness
                   </span>
-                  <div className="rounded-lg bg-[#8B5CF6]/15 p-2 text-[#8B5CF6]">
-                    <Target className="h-4 w-4" />
-                  </div>
                 </div>
                 <div className="mt-4">
-                  <p className="font-mono-tabular text-3xl font-bold text-[#F8FAFC]">
-                    {stats?.tomorrowPlannedCount ?? 0}
-                    <span className="text-lg font-medium text-[#64748B]"> / 8</span>
+                  <p className="font-mono-tabular text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
+                    Day {String(stats?.currentDayNumber ?? 1).padStart(2, '0')}
+                    <span className="text-lg font-medium text-[var(--text-muted)]"> / 31</span>
                   </p>
+                  <p className="mt-1.5 font-mono-tabular text-xs font-semibold text-[#D98200] dark:text-[#F5B841]">
+                    {stats?.currentStreak ?? 0}d current · {stats?.bestStreak ?? 0}d best
+                  </p>
+                </div>
+              </Card>
+
+              <Card
+                variant="contrast"
+                className="flex flex-col justify-between gap-4 p-6 sm:col-span-2 sm:flex-row sm:items-center"
+              >
+                <div>
+                  <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] opacity-65">
+                    Tomorrow Gatekeeper Readiness
+                  </span>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="font-mono-tabular text-3xl font-semibold tracking-[-0.03em]">
+                      {String(tomorrowPlannedCount).padStart(2, '0')}
+                    </span>
+                    <span className="font-mono-tabular text-sm opacity-60">
+                      / {String(totalPillars).padStart(2, '0')} PILLARS
+                    </span>
+                  </div>
                   <p
-                    className={`mt-1 text-xs ${
-                      stats?.canCloseToday ? 'text-[#10B981]' : 'text-[#F59E0B]'
+                    className={`mt-1 font-mono-tabular text-xs font-medium ${
+                      stats?.canCloseToday ? 'text-[#5CE68A]' : 'text-[#F5B841]'
                     }`}
                   >
                     {stats?.canCloseToday
-                      ? 'Ready to close today'
-                      : 'Plan all 8 pillars to lock today'}
+                      ? 'Ready to close today & lock tomorrow'
+                      : 'Plan all 8 pillars to unlock day close'}
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+
+                <SegmentedBattery
+                  total={totalPillars}
+                  filled={tomorrowPlannedCount}
+                  label="Lock Matrix"
+                  size="lg"
+                  variant="contrast"
+                />
+              </Card>
+            </div>
           </div>
 
-          {/* Row 2: Recharts Visualizations */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* 8-Pillar Balance Chart */}
-            <Card className="lg:col-span-5">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          {/* Row 2: Hardware Telemetry Visualizations (NO Recharts) */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            {/* 8-Pillar Balance (lg:col-span-5) */}
+            <Card className="lg:col-span-5 flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
                 <div>
                   <CardTitle>8-Pillar Balance</CardTitle>
-                  <CardDescription>Completion rate (%) across Core Pillars</CardDescription>
+                  <CardDescription>Completion rate across Core Pillars</CardDescription>
                 </div>
-                <div className="flex rounded-lg border border-[#1E2330] bg-[#171A26] p-0.5">
+
+                <div className="inline-flex rounded-full border border-[var(--border-hairline)] bg-[var(--bg-recessed)] p-1">
                   <button
                     type="button"
-                    onClick={() => setBalanceView('radar')}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium cursor-pointer ${
-                      balanceView === 'radar'
-                        ? 'bg-[#7C3AED] text-white'
-                        : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                    onClick={() => setBalanceView('capsules')}
+                    className={`rounded-full px-3 py-1 font-mono-tabular text-[11px] font-semibold transition-colors cursor-pointer ${
+                      balanceView === 'capsules'
+                        ? 'bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    Radar
+                    Capsules
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBalanceView('bar')}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium cursor-pointer ${
-                      balanceView === 'bar'
-                        ? 'bg-[#7C3AED] text-white'
-                        : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                    onClick={() => setBalanceView('matrix')}
+                    className={`rounded-full px-3 py-1 font-mono-tabular text-[11px] font-semibold transition-colors cursor-pointer ${
+                      balanceView === 'matrix'
+                        ? 'bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    Bar
+                    Matrix
                   </button>
                 </div>
               </CardHeader>
-              <CardContent className="h-[320px] pt-4">
-                {radarData.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-sm text-[#64748B]">
+
+              <CardContent className="flex-1 pt-2">
+                {pillarStats.length === 0 ? (
+                  <div className="flex h-[240px] items-center justify-center rounded-[20px] border border-dashed border-[var(--border-strong)] bg-hatch-fine text-sm text-[var(--text-muted)]">
                     No pillar data available yet.
                   </div>
-                ) : balanceView === 'radar' ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={radarData} outerRadius="72%">
-                      <PolarGrid stroke="#1E2330" />
-                      <PolarAngleAxis
-                        dataKey="pillar"
-                        tick={{ fill: '#94A3B8', fontSize: 11 }}
-                      />
-                      <PolarRadiusAxis
-                        angle={30}
-                        domain={[0, 100]}
-                        tick={{ fill: '#64748B', fontSize: 10 }}
-                      />
-                      <Radar
-                        name="Completion %"
-                        dataKey="completionRate"
-                        stroke="#8B5CF6"
-                        fill="#7C3AED"
-                        fillOpacity={0.35}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#12151E',
-                          borderColor: '#1E2330',
-                          borderRadius: '12px',
-                          color: '#F8FAFC',
-                          fontSize: '12px',
-                        }}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
+                ) : balanceView === 'capsules' ? (
+                  <CapsuleBarChart data={pillarCapsuleData} height={224} />
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={radarData} layout="vertical" margin={{ left: 10, right: 16 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1E2330" />
-                      <XAxis type="number" domain={[0, 100]} tick={{ fill: '#64748B', fontSize: 11 }} />
-                      <YAxis
-                        dataKey="pillar"
-                        type="category"
-                        width={76}
-                        tick={{ fill: '#94A3B8', fontSize: 11 }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#12151E',
-                          borderColor: '#1E2330',
-                          borderRadius: '12px',
-                          color: '#F8FAFC',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <Bar dataKey="completionRate" name="Completion %" fill="#8B5CF6" radius={[0, 6, 6, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="space-y-2.5">
+                    {pillarStats.map((p) => {
+                      const meta = getPillarMeta(p.categoryName);
+                      const Icon = meta.icon;
+                      const filledSegments =
+                        p.plannedCount === 0
+                          ? 0
+                          : Math.round((p.completionRate / 100) * 8);
+                      return (
+                        <div
+                          key={p.categoryId}
+                          className="flex items-center justify-between gap-3 rounded-[18px] border border-[var(--border-hairline)] bg-[var(--bg-sand)]/45 px-3.5 py-2"
+                        >
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg-card)] border border-[var(--border-hairline)] text-[var(--text-primary)]">
+                              <Icon className="h-3.5 w-3.5" />
+                            </span>
+                            <span className="truncate text-xs font-semibold text-[var(--text-primary)]">
+                              {meta.shortName}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <SegmentedBattery
+                              total={8}
+                              filled={filledSegments}
+                              showCount={false}
+                              size="sm"
+                            />
+                            <span className="w-10 text-right font-mono-tabular text-xs font-semibold text-[var(--text-primary)]">
+                              {p.completionRate}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* 31-Day Consistency Trend Chart */}
-            <Card className="lg:col-span-7">
-              <CardHeader>
-                <CardTitle>31-Day Consistency Trend</CardTitle>
-                <CardDescription>Daily planned vs. completed actions across logged days</CardDescription>
+            {/* 31-Day Consistency Trend (lg:col-span-7) */}
+            <Card className="lg:col-span-7 flex flex-col">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between space-y-0 pb-3">
+                <div>
+                  <CardTitle>31-Day Consistency Trend</CardTitle>
+                  <CardDescription>
+                    Capsule telemetry across logged and projected sprint days
+                  </CardDescription>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-2.5 py-1 dark:bg-[#120D1D]">
+                    <span className="h-2 w-2 rounded-full bg-[#5CE68A]" /> Closed
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-2.5 py-1 dark:bg-[#120D1D]">
+                    <span className="h-2 w-2 rounded-full bg-[#E6FA72] dark:bg-[#D96BFF]" /> Today
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-2.5 py-1 dark:bg-[#120D1D]">
+                    <span className="h-2 w-2 rounded-full bg-[#F5B841]" /> Tomorrow
+                  </span>
+                </div>
               </CardHeader>
-              <CardContent className="h-[320px] pt-2">
-                {trendData.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-sm text-[#64748B]">
-                    Log your first goals to visualize daily consistency.
+
+              <CardContent className="flex-1 pt-2">
+                <div className="overflow-x-auto pb-1">
+                  <div className="min-w-[660px]">
+                    <CapsuleBarChart data={trendCapsuleData} height={224} />
                   </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData} margin={{ top: 10, right: 16, left: -12, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="completedGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="plannedGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1E2330" />
-                      <XAxis dataKey="day" tick={{ fill: '#94A3B8', fontSize: 11 }} />
-                      <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#12151E',
-                          borderColor: '#1E2330',
-                          borderRadius: '12px',
-                          color: '#F8FAFC',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <Legend wrapperStyle={{ fontSize: '12px' }} />
-                      <Area
-                        type="monotone"
-                        dataKey="Planned"
-                        stroke="#8B5CF6"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#plannedGrad)"
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="Completed"
-                        stroke="#10B981"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#completedGrad)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                )}
+                </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Row 3: 8-Pillar Breakdown Table & Recent Activity Feed */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
             <Card className="lg:col-span-8">
               <CardHeader>
                 <CardTitle>8-Pillar Breakdown</CardTitle>
-                <CardDescription>Planned, completed, skipped, and active streak per pillar</CardDescription>
+                <CardDescription>
+                  Planned, completed, skipped, and active streak per pillar
+                </CardDescription>
               </CardHeader>
               <CardContent className="px-0 pb-2">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Pillar</TableHead>
-                      <TableHead className="text-right">Planned</TableHead>
-                      <TableHead className="text-right">Done</TableHead>
-                      <TableHead className="text-right">Skipped</TableHead>
-                      <TableHead className="text-right">Streak</TableHead>
-                      <TableHead className="text-right">Rate</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pillarStats.map((pillar) => {
-                      const meta = getPillarMeta(pillar.categoryName);
-                      const Icon = meta.icon;
-                      return (
-                        <TableRow key={pillar.categoryId}>
-                          <TableCell>
-                            <div className="flex items-center gap-2.5">
-                              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#171A26] text-[#8B5CF6]">
-                                <Icon className="h-3.5 w-3.5" />
+                {pillarStats.length === 0 ? (
+                  <p className="px-6 py-8 text-sm text-[var(--text-muted)]">
+                    No pillar breakdown available for this sprint yet.
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pillar</TableHead>
+                        <TableHead className="text-right">Planned</TableHead>
+                        <TableHead className="text-right">Done</TableHead>
+                        <TableHead className="text-right">Skipped</TableHead>
+                        <TableHead className="text-right">Streak</TableHead>
+                        <TableHead className="text-right">Rate</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pillarStats.map((pillar) => {
+                        const meta = getPillarMeta(pillar.categoryName);
+                        const Icon = meta.icon;
+                        return (
+                          <TableRow key={pillar.categoryId}>
+                            <TableCell>
+                              <div className="flex items-center gap-2.5">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--bg-sand)] text-[var(--text-primary)]">
+                                  <Icon className="h-3.5 w-3.5" />
+                                </div>
+                                <span className="font-semibold text-[var(--text-primary)]">
+                                  {pillar.categoryName}
+                                </span>
                               </div>
-                              <span className="font-medium text-[#F8FAFC]">
-                                {pillar.categoryName}
+                            </TableCell>
+                            <TableCell className="text-right font-mono-tabular text-[var(--text-secondary)]">
+                              {pillar.plannedCount}
+                            </TableCell>
+                            <TableCell className="text-right font-mono-tabular font-semibold text-[#15803D] dark:text-[#5CE68A]">
+                              {pillar.completedCount}
+                            </TableCell>
+                            <TableCell className="text-right font-mono-tabular text-[var(--text-secondary)]">
+                              {pillar.skippedCount}
+                            </TableCell>
+                            <TableCell className="text-right font-mono-tabular font-semibold text-[#D98200] dark:text-[#F5B841]">
+                              {pillar.currentStreak}d
+                            </TableCell>
+                            <TableCell className="text-right font-mono-tabular font-semibold">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs ${
+                                  pillar.completionRate >= 75
+                                    ? 'bg-[#5CE68A] text-[#121212]'
+                                    : pillar.completionRate >= 40
+                                    ? 'bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                                    : 'bg-[var(--bg-sand)] text-[var(--text-secondary)]'
+                                }`}
+                              >
+                                {pillar.completionRate}%
                               </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-mono-tabular text-[#94A3B8]">
-                            {pillar.plannedCount}
-                          </TableCell>
-                          <TableCell className="text-right font-mono-tabular text-[#10B981]">
-                            {pillar.completedCount}
-                          </TableCell>
-                          <TableCell className="text-right font-mono-tabular text-[#94A3B8]">
-                            {pillar.skippedCount}
-                          </TableCell>
-                          <TableCell className="text-right font-mono-tabular text-[#F59E0B]">
-                            {pillar.currentStreak}d
-                          </TableCell>
-                          <TableCell className="text-right font-mono-tabular font-semibold">
-                            <span
-                              className={`rounded-md px-2 py-0.5 text-xs ${
-                                pillar.completionRate >= 75
-                                  ? 'bg-[#10B981]/15 text-[#10B981]'
-                                  : pillar.completionRate >= 40
-                                  ? 'bg-[#8B5CF6]/15 text-[#A78BFA]'
-                                  : 'bg-[#171A26] text-[#94A3B8]'
-                              }`}
-                            >
-                              {pillar.completionRate}%
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
 
@@ -516,22 +566,22 @@ export default function AnalyticsDashboard() {
                 <CardTitle>Recent Activity</CardTitle>
                 <CardDescription>Latest planned and completed pillar actions</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2.5">
                 {recentActivity.length === 0 ? (
-                  <p className="text-sm text-[#64748B]">
+                  <div className="rounded-[20px] border border-dashed border-[var(--border-strong)] bg-hatch-fine p-5 text-center text-sm text-[var(--text-muted)]">
                     No habit actions recorded yet in this sprint.
-                  </p>
+                  </div>
                 ) : (
                   recentActivity.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-start gap-3 rounded-xl border border-[#1E2330] bg-[#12151E] p-3"
+                      className="flex items-start gap-3 rounded-[20px] border border-[var(--border-hairline)] bg-[var(--bg-sand)]/55 p-3.5 dark:bg-[#120D1D]"
                     >
                       <div
-                        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                           item.isCompleted
-                            ? 'bg-[#10B981]/15 text-[#10B981]'
-                            : 'bg-[#F59E0B]/15 text-[#F59E0B]'
+                            ? 'bg-[#5CE68A] text-[#121212]'
+                            : 'bg-[#F5B841]/25 text-[#9A5B00] dark:text-[#F5B841]'
                         }`}
                       >
                         {item.isCompleted ? (
@@ -541,12 +591,14 @@ export default function AnalyticsDashboard() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-semibold text-[#F8FAFC]">
+                        <p className="truncate text-xs font-semibold text-[var(--text-primary)]">
                           {item.description}
                         </p>
-                        <div className="mt-1 flex items-center justify-between text-[11px] text-[#64748B]">
-                          <span className="text-[#8B5CF6]">{item.categoryName}</span>
-                          <span className="font-mono-tabular">
+                        <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+                          <span className="rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-2 py-0.5 font-medium text-[var(--text-primary)]">
+                            {item.categoryName}
+                          </span>
+                          <span className="font-mono-tabular text-[var(--text-muted)]">
                             {new Date(item.timestamp).toLocaleDateString()}
                           </span>
                         </div>

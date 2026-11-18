@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Loader2, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import apiClient from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
-import { AuthShowcasePanel } from './Login';
+import { AuthShowcasePanel, AuthThemeToggleBar } from './Login';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 
@@ -63,30 +63,26 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#090A0F] text-[#F8FAFC]">
+    <div className="flex min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)]">
       <AuthShowcasePanel />
 
-      <div className="flex w-full lg:w-1/2 flex-col items-center justify-center px-6 py-12">
+      <div className="flex w-full lg:w-[48%] flex-col items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7C3AED] text-white">
-              <Zap className="h-4 w-4" />
-            </div>
-            <span className="text-lg font-bold tracking-tight">
-              Proactive<span className="text-[#8B5CF6]">31</span>
-            </span>
-          </div>
+          <AuthThemeToggleBar />
 
-          <div className="rounded-2xl border border-[#1E2330] bg-[#12151E]/90 p-8 shadow-2xl backdrop-blur-xl">
-            <div className="mb-6">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#1E2330] bg-[#171A26] px-3 py-1 text-xs font-medium text-[#10B981]">
-                <Sparkles className="h-3 w-3" />
+          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
+            <div className="mb-7">
+              <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                 31-Day Sprint Onboarding
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-[#F8FAFC]">
-                Create your workspace
+              </p>
+              <h1 className="mt-2 text-4xl sm:text-[38px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
+                Create{' '}
+                <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#5CE68A] px-3 py-1 text-[#121212] dark:bg-[#F5B841] dark:text-[#0D0914]">
+                  <Sparkles className="h-4 w-4 stroke-[2.4]" />
+                </span>{' '}
+                workspace
               </h1>
-              <p className="mt-1.5 text-sm text-[#94A3B8]">
+              <p className="mt-2.5 text-sm text-[var(--text-secondary)]">
                 Build unbreakable consistency across 8 Core Pillars in 31 days.
               </p>
             </div>
@@ -95,7 +91,7 @@ export default function Register() {
               <div>
                 <label
                   htmlFor="register-email"
-                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#94A3B8]"
+                  className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                 >
                   Email address
                 </label>
@@ -114,7 +110,7 @@ export default function Register() {
               <div>
                 <label
                   htmlFor="register-password"
-                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#94A3B8]"
+                  className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                 >
                   Password
                 </label>
@@ -133,7 +129,7 @@ export default function Register() {
               <div>
                 <label
                   htmlFor="register-confirm-password"
-                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#94A3B8]"
+                  className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                 >
                   Confirm password
                 </label>
@@ -151,7 +147,7 @@ export default function Register() {
               {error && (
                 <div
                   role="alert"
-                  className="rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 py-3 text-sm text-[#EF4444]"
+                  className="rounded-[18px] border border-[#DC2626]/30 bg-[#DC2626]/10 px-4 py-3 text-xs font-medium text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]"
                 >
                   {error}
                 </div>
@@ -161,7 +157,8 @@ export default function Register() {
                 id="register-submit-btn"
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 text-sm font-semibold"
+                size="lg"
+                className="w-full"
               >
                 {loading ? (
                   <>
@@ -170,31 +167,31 @@ export default function Register() {
                   </>
                 ) : (
                   <>
-                    Create Account & Launch
+                    Create Account &amp; Launch
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
               </Button>
             </form>
 
-            <div className="mt-6 border-t border-[#1E2330] pt-5 flex items-center justify-between text-sm">
-              <span className="text-[#94A3B8]">Already have an account?</span>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-5 text-sm">
+              <span className="text-[var(--text-secondary)]">Already have an account?</span>
               <Link
                 to="/login"
-                className="font-semibold text-[#8B5CF6] hover:text-[#A78BFA] transition-colors"
+                className="inline-flex items-center rounded-full bg-[var(--bg-sand)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-[#D96BFF] dark:hover:text-[#0D0914] transition-colors"
               >
                 Sign in
               </Link>
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-center gap-5 text-xs text-[#64748B]">
+          <div className="mt-5 flex items-center justify-center gap-5 font-mono-tabular text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#5CE68A]" />
               Instant JWT auto-login
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#5CE68A]" />
               Zero setup friction
             </span>
           </div>

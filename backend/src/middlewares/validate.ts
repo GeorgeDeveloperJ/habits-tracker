@@ -39,6 +39,24 @@ export const loginSchema = z.object({
     .min(1, 'Email and password are required.'),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string({ required_error: 'Email is required.' })
+    .trim()
+    .min(1, 'Email is required.')
+    .email('Invalid email address.'),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z
+    .string({ required_error: 'Reset token is required.' })
+    .trim()
+    .min(1, 'Reset token is required.'),
+  password: z
+    .string({ required_error: 'Password is required.' })
+    .min(6, 'Password must be at least 6 characters long.'),
+});
+
 export const startCycleSchema = z
   .object({
     initialGoals: z

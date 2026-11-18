@@ -1,111 +1,161 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Loader2, Lock, Sparkles, Zap } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ArrowRight,
+  CheckCircle2,
+  KeyRound,
+  Loader2,
+  Lock,
+  Moon,
+  Sparkles,
+  Sun,
+  Zap,
+} from 'lucide-react';
 import apiClient from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
-import { CORE_PILLARS } from '../../lib/pillars';
+import { useThemeStore } from '../../store/themeStore';
+import {
+  DotMatrixRibbon,
+  PillarCompassDiagram,
+  SegmentedBattery,
+} from '../charts/HardwareViz';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 
 export function AuthShowcasePanel() {
-  const previewDays = Array.from({ length: 31 }, (_, i) => i + 1);
+  const previewDays = Array.from({ length: 31 }, (_, i) => {
+    const dayNumber = i + 1;
+    return {
+      dayNumber,
+      isClosed: dayNumber <= 6,
+      isToday: dayNumber === 7,
+      isTomorrow: dayNumber === 8,
+      isLogged: dayNumber <= 7,
+    };
+  });
 
   return (
-    <div className="relative hidden lg:flex lg:w-1/2 flex-col justify-between overflow-hidden border-r border-[#1E2330] bg-[#0B0D13] p-12">
-      {/* Subtle radial atmospheric glow */}
-      <div
-        className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(circle, #7C3AED 0%, transparent 70%)' }}
-      />
-      <div
-        className="pointer-events-none absolute -bottom-24 right-0 h-96 w-96 rounded-full opacity-15 blur-3xl"
-        style={{ background: 'radial-gradient(circle, #10B981 0%, transparent 70%)' }}
-      />
-
-      <div className="relative z-10">
-        <div className="inline-flex items-center gap-2.5 rounded-xl border border-[#1E2330] bg-[#12151E] px-3.5 py-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#7C3AED] text-white">
-            <Zap className="h-4 w-4" />
+    <div className="hidden lg:flex lg:w-[52%] flex-col gap-4 p-4 pr-2">
+      {/* Top Bento Manifesto Card */}
+      <div className="flex flex-col justify-between rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-8">
+        <div className="flex items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-3.5 py-1.5 dark:bg-[#1E1730]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+              <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
+            </span>
+            <span className="text-xs font-bold tracking-tight">Proactive31</span>
           </div>
-          <span className="text-sm font-bold tracking-tight text-[#F8FAFC]">
-            Proactive<span className="text-[#8B5CF6]">31</span>
-          </span>
-          <span className="ml-2 rounded-md bg-[#171A26] px-2 py-0.5 font-mono-tabular text-[11px] font-medium text-[#94A3B8]">
-            8-PILLAR ENGINE
+          <span className="rounded-full bg-[#E6FA72] px-3 py-1 font-mono-tabular text-[10px] font-bold uppercase tracking-[0.14em] text-[#121212] dark:bg-[#D96BFF]/20 dark:text-[#D96BFF]">
+            8-Pillar Telemetry
           </span>
         </div>
 
-        <div className="mt-10 max-w-lg">
-          <h2 className="text-4xl font-extrabold tracking-tight text-[#F8FAFC] leading-[1.12]">
-            Plan Tonight.
-            <span className="block text-[#8B5CF6] mt-1">Execute Tomorrow.</span>
+        <div className="mt-8">
+          <h2 className="text-[42px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
+            Plan{' '}
+            <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+              <Zap className="h-5 w-5 stroke-[2.4]" />
+            </span>{' '}
+            Tonight.
+            <span className="block text-[var(--text-secondary)]">Execute Tomorrow.</span>
           </h2>
-          <p className="mt-4 text-base text-[#94A3B8] leading-relaxed">
-            Passive trackers record yesterday. Proactive31 locks your commitment across 8 Core Pillars every evening before you close your day.
+          <p className="mt-4 max-w-lg text-sm leading-relaxed text-[var(--text-secondary)]">
+            Passive trackers log yesterday. Proactive31 locks your commitment across 8 Core Life Pillars every evening before you close your day.
           </p>
         </div>
+      </div>
 
-        {/* Interactive 31-day visual preview strip */}
-        <div className="mt-8 rounded-2xl border border-[#1E2330] bg-[#11131C]/90 p-5">
+      {/* Bottom Asymmetrical Bento Visual Anchors */}
+      <div className="grid flex-1 grid-cols-12 gap-4">
+        {/* 2D Vector Compass + Frosted Glass Pill Overlays */}
+        <div className="col-span-7 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
-              31-Day Sprint Cadence
+            <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+              8-Pillar Vector Matrix
             </span>
-            <span className="font-mono-tabular text-xs font-semibold text-[#10B981]">
-              Day 07 / 31 · 89%
+            <span className="font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
+              360° Balance
             </span>
           </div>
-          <div className="grid grid-cols-11 gap-1.5">
-            {previewDays.map((day) => {
-              const isClosed = day <= 6;
-              const isToday = day === 7;
-              const isTomorrow = day === 8;
-              return (
-                <div
-                  key={day}
-                  className={`flex h-7 items-center justify-center rounded-md font-mono-tabular text-[11px] font-semibold transition-all ${
-                    isClosed
-                      ? 'bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30'
-                      : isToday
-                      ? 'bg-[#7C3AED] text-[#F8FAFC] ring-2 ring-[#8B5CF6]/40'
-                      : isTomorrow
-                      ? 'border border-dashed border-[#F59E0B]/60 bg-[#F59E0B]/10 text-[#F59E0B]'
-                      : 'border border-[#1E2330] bg-[#181C28] text-[#64748B]'
-                  }`}
-                >
-                  {String(day).padStart(2, '0')}
-                </div>
-              );
-            })}
+          <PillarCompassDiagram activePillarIndex={0} className="flex-1 min-h-[260px]" />
+        </div>
+
+        {/* High-Contrast Hardware Telemetry Preview Block */}
+        <div className="col-span-5 flex flex-col justify-between rounded-[28px] bg-[#121212] p-6 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                Sprint Cadence
+              </span>
+              <span className="rounded-full bg-[#5CE68A] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+                DAY 07/31
+              </span>
+            </div>
+
+            <div className="mt-5">
+              <p className="font-mono-tabular text-[40px] font-semibold leading-none tracking-[-0.04em]">
+                89%
+              </p>
+              <p className="mt-1.5 text-xs text-white/60">
+                Average closed-day adherence
+              </p>
+            </div>
+
+            <div className="mt-5">
+              <SegmentedBattery
+                total={8}
+                filled={8}
+                label="Gatekeeper Lock"
+                size="md"
+                variant="contrast"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <p className="mb-2 font-mono-tabular text-[10px] uppercase tracking-[0.14em] text-white/50">
+              31-Day Capsule Strip
+            </p>
+            <DotMatrixRibbon days={previewDays} interactive={false} compact />
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function AuthThemeToggleBar() {
+  const theme = useThemeStore((state) => state.theme);
+  const toggleTheme = useThemeStore((state) => state.toggleTheme);
+
+  return (
+    <div className="mb-6 flex items-center justify-between gap-3 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-3.5 py-2">
+      <div className="flex items-center gap-2">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+          <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
+        </span>
+        <span className="text-xs font-bold tracking-tight">Proactive31</span>
       </div>
 
-      {/* 8 Core Pillars Overview Grid */}
-      <div className="relative z-10 mt-8">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
-          The 8 Core Life Pillars
-        </p>
-        <div className="grid grid-cols-2 gap-2.5">
-          {CORE_PILLARS.map((pillar) => {
-            const Icon = pillar.icon;
-            return (
-              <div
-                key={pillar.name}
-                className="flex items-center gap-2.5 rounded-xl border border-[#1E2330] bg-[#12151E]/80 px-3 py-2.5"
-              >
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#171A26] text-[#8B5CF6]">
-                  <Icon className="h-3.5 w-3.5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-[#F8FAFC]">{pillar.name}</p>
-                  <p className="truncate text-[11px] text-[#64748B]">{pillar.tagline}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <button
+        id="theme-toggle-btn"
+        type="button"
+        onClick={toggleTheme}
+        aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+      >
+        {theme === 'dark' ? (
+          <>
+            <Sun className="h-3.5 w-3.5 text-[#F5B841]" />
+            <span>Light</span>
+          </>
+        ) : (
+          <>
+            <Moon className="h-3.5 w-3.5" />
+            <span>Dark</span>
+          </>
+        )}
+      </button>
     </div>
   );
 }
@@ -115,6 +165,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [searchParams] = useSearchParams();
+  const resetSuccess = searchParams.get('reset') === 'success';
 
   const token = useAuthStore((state) => state.token);
   const login = useAuthStore((state) => state.login);
@@ -157,39 +210,45 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#090A0F] text-[#F8FAFC]">
+    <div className="flex min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)]">
       <AuthShowcasePanel />
 
-      <div className="flex w-full lg:w-1/2 flex-col items-center justify-center px-6 py-12">
+      <div className="flex w-full lg:w-[48%] flex-col items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7C3AED] text-white">
-              <Zap className="h-4 w-4" />
-            </div>
-            <span className="text-lg font-bold tracking-tight">
-              Proactive<span className="text-[#8B5CF6]">31</span>
-            </span>
-          </div>
+          <AuthThemeToggleBar />
 
-          <div className="rounded-2xl border border-[#1E2330] bg-[#12151E]/90 p-8 shadow-2xl backdrop-blur-xl">
-            <div className="mb-6">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#1E2330] bg-[#171A26] px-3 py-1 text-xs font-medium text-[#8B5CF6]">
-                <Lock className="h-3 w-3" />
+          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
+            <div className="mb-7">
+              <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                 Command Center Access
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-[#F8FAFC]">
-                Welcome back
+              </p>
+              <h1 className="mt-2 text-4xl sm:text-[40px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
+                Welcome{' '}
+                <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                  <Lock className="h-4 w-4 stroke-[2.4]" />
+                </span>{' '}
+                back
               </h1>
-              <p className="mt-1.5 text-sm text-[#94A3B8]">
+              <p className="mt-2.5 text-sm text-[var(--text-secondary)]">
                 Sign in to execute today&apos;s plan and lock tomorrow&apos;s 8 pillars.
               </p>
             </div>
+
+            {resetSuccess && (
+              <div
+                role="status"
+                className="mb-5 flex items-center gap-2.5 rounded-[20px] border border-[#5CE68A]/50 bg-[#5CE68A]/20 px-4 py-3 text-xs font-semibold text-[#121212] dark:text-[#5CE68A]"
+              >
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>Password updated successfully. You can now sign in.</span>
+              </div>
+            )}
 
             <form className="space-y-4" onSubmit={handleSubmit} noValidate>
               <div>
                 <label
                   htmlFor="login-email"
-                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#94A3B8]"
+                  className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                 >
                   Email address
                 </label>
@@ -206,12 +265,22 @@ export default function Login() {
               </div>
 
               <div>
-                <label
-                  htmlFor="login-password"
-                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#94A3B8]"
-                >
-                  Password
-                </label>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <label
+                    htmlFor="login-password"
+                    className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+                  >
+                    Password
+                  </label>
+                  <Link
+                    id="forgot-password-link"
+                    to="/forgot-password"
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-4 hover:bg-[var(--bg-sand)] dark:text-[#F5B841] transition-colors"
+                  >
+                    <KeyRound className="h-3 w-3" />
+                    Forgot password?
+                  </Link>
+                </div>
                 <Input
                   id="login-password"
                   name="password"
@@ -227,7 +296,7 @@ export default function Login() {
               {error && (
                 <div
                   role="alert"
-                  className="rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 py-3 text-sm text-[#EF4444]"
+                  className="rounded-[18px] border border-[#DC2626]/30 bg-[#DC2626]/10 px-4 py-3 text-xs font-medium text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]"
                 >
                   {error}
                 </div>
@@ -237,7 +306,8 @@ export default function Login() {
                 id="login-submit-btn"
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 text-sm font-semibold"
+                size="lg"
+                className="w-full"
               >
                 {loading ? (
                   <>
@@ -253,11 +323,11 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-6 border-t border-[#1E2330] pt-5 flex items-center justify-between text-sm">
-              <span className="text-[#94A3B8]">New to Proactive31?</span>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-5 text-sm">
+              <span className="text-[var(--text-secondary)]">New to Proactive31?</span>
               <Link
                 to="/register"
-                className="inline-flex items-center gap-1 font-semibold text-[#8B5CF6] hover:text-[#A78BFA] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-sand)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-[#D96BFF] dark:hover:text-[#0D0914] transition-colors"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Start a 31-day sprint
@@ -265,14 +335,14 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="mt-6 flex items-center justify-center gap-5 text-xs text-[#64748B]">
+          <div className="mt-5 flex items-center justify-center gap-5 font-mono-tabular text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#5CE68A]" />
               Multi-tenant isolated
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" />
-              8 Core Life Pillars
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#5CE68A]" />
+              8 Core Pillars
             </span>
           </div>
         </div>

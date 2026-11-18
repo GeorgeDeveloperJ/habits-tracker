@@ -21,6 +21,8 @@
 | 12 | `UI-01`: `DESIGN.md` & 4-Screen Stitch-Guided Dark UI Redesign (Issue #11) | `ORIGINAL_REQUEST.md` §Phase 3 | 5 | 5 | ✓ |
 | 13 | `FEAT-03`: Live Analytics Dashboard, Sprint History Day Inspector & Day 31 Rollover | `ORIGINAL_REQUEST.md` §Phase 4.1–4.2 | 5 | 5 | ✓ |
 | 14 | `QUAL-01`: Zod Request Validation Middleware & Multi-Tenant Security | `ORIGINAL_REQUEST.md` §Phase 4.3 | 5 | 5 | ✓ |
+| 15 | `FEAT-04`: Forgot Password & Reset Password API + Security Boundaries | `ORIGINAL_REQUEST.md` §Follow-up `2026-11-18T13:52:21Z` | 5 | 5 | ✓ |
+| 16 | `UI-02`: Dual-Mode Modular Bento & Hardware Telemetry UI + Forgot Password UI | `ORIGINAL_REQUEST.md` §Follow-up `2026-11-18T13:52:21Z` | ✓ | ✓ | ✓ |
 
 ## Test Architecture
 - **Test Runner**:

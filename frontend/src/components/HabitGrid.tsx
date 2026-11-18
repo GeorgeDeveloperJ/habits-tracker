@@ -15,11 +15,19 @@ import {
   Sparkles,
   Trash2,
   X,
+  Zap,
 } from 'lucide-react';
 import { useHabits } from '../context/useHabits';
 import { getPillarMeta } from '../lib/pillars';
 import type { PlannedAction } from '../services/api';
+import {
+  ConcentricRing,
+  DotMatrixRibbon,
+  SegmentedBattery,
+  type DotMatrixDay,
+} from './charts/HardwareViz';
 import { Button } from './ui/button';
+import { Card } from './ui/card';
 import { Input } from './ui/input';
 
 const HabitGrid: React.FC = () => {
@@ -64,6 +72,10 @@ const HabitGrid: React.FC = () => {
   const tomorrowPlannedCount = stats?.tomorrowPlannedCount ?? 0;
   const canCloseToday = Boolean(stats?.canCloseToday) && !todayLog?.isClosed;
   const overallRate = stats?.overallCompletionRate ?? 0;
+  const todayPlannedCount = stats?.todayPlannedCount ?? 0;
+  const todayCompletedCount = stats?.todayCompletedCount ?? 0;
+  const todayCompletionRate =
+    todayPlannedCount > 0 ? Math.round((todayCompletedCount / todayPlannedCount) * 100) : 0;
 
   const isDay31Completed =
     currentDayNumber >= 31 && Boolean(todayLog?.isClosed);
@@ -85,6 +97,26 @@ const HabitGrid: React.FC = () => {
     });
     return map;
   }, [progress]);
+
+  const ribbonDays: DotMatrixDay[] = useMemo(
+    () =>
+      Array.from({ length: 31 }, (_, idx) => {
+        const dayNumber = idx + 1;
+        const info = daySeriesMap.get(dayNumber);
+        return {
+          dayNumber,
+          isClosed: Boolean(info?.isClosed),
+          isToday: dayNumber === currentDayNumber,
+          isTomorrow: dayNumber === currentDayNumber + 1 && (info?.planned ?? 0) > 0,
+          isLogged: Boolean(info),
+          isSelected: dayNumber === effectiveSelectedDay,
+          completionRate: info
+            ? Math.round((info.completed / Math.max(1, info.planned)) * 100)
+            : undefined,
+        };
+      }),
+    [daySeriesMap, currentDayNumber, effectiveSelectedDay]
+  );
 
   const displayedPlansByCategory = useMemo(() => {
     const map = new Map<string, PlannedAction>();
@@ -189,12 +221,15 @@ const HabitGrid: React.FC = () => {
     try {
       setIsClosingDay(true);
       await closeToday(false);
-      showToast('success', `Day ${String(currentDayNumber).padStart(2, '0')} closed & tomorrow locked!`);
+      showToast(
+        'success',
+        `Day ${String(currentDayNumber).padStart(2, '0')} closed & tomorrow locked!`
+      );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast(
         'error',
-        msg || "Cannot close today until all 8 pillars are planned for tomorrow."
+        msg || 'Cannot close today until all 8 pillars are planned for tomorrow.'
       );
     } finally {
       setIsClosingDay(false);
@@ -214,34 +249,35 @@ const HabitGrid: React.FC = () => {
     }
   };
 
-  // SVG Ring math
-  const radius = 34;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (overallRate / 100) * circumference;
-
-  const ribbonDays = Array.from({ length: 31 }, (_, idx) => idx + 1);
-
   return (
-    <div className="space-y-6">
-      {/* Page Title Row */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4">
+      {/* Editorial Command Center Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC]">
-              Command Center
+          <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            31-Day Proactive Discipline · 8 Core Pillars
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h1 className="text-4xl sm:text-[44px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
+              Daily{' '}
+              <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                <Zap className="h-5 w-5 stroke-[2.3]" />
+              </span>{' '}
+              Command
             </h1>
-            <span className="rounded-lg border border-[#8B5CF6]/40 bg-[#7C3AED]/15 px-2.5 py-0.5 font-mono-tabular text-xs font-semibold text-[#8B5CF6]">
-              Day {String(currentDayNumber).padStart(2, '0')} / 31
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#121212] px-3.5 py-1 font-mono-tabular text-xs font-semibold text-[#E6FA72] dark:border dark:border-white/10 dark:bg-[#231B38] dark:text-[#D96BFF]">
+              DAY {String(currentDayNumber).padStart(2, '0')} / 31
             </span>
           </div>
-          <p className="mt-1 text-sm text-[#94A3B8]">
-            Execute today&apos;s 8 pillars on the left, lock tomorrow&apos;s plan on the right.
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            Execute today&apos;s commitments on the left and lock tomorrow&apos;s 8-pillar plan on the right.
           </p>
         </div>
 
         {activeCycle && (
-          <div className="font-mono-tabular text-xs text-[#64748B]">
-            Sprint started {new Date(activeCycle.startDate).toLocaleDateString()}
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-4 py-2 font-mono-tabular text-[11px] font-medium text-[var(--text-secondary)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#5CE68A]" />
+            Started {new Date(activeCycle.startDate).toLocaleDateString()}
           </div>
         )}
       </div>
@@ -250,13 +286,13 @@ const HabitGrid: React.FC = () => {
       {feedback && (
         <div
           role="status"
-          className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+          className={`flex items-center justify-between gap-3 rounded-[24px] border px-4 py-3 text-sm font-medium ${
             feedback.type === 'success'
-              ? 'border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981]'
-              : 'border-[#EF4444]/40 bg-[#EF4444]/10 text-[#EF4444]'
+              ? 'border-[#5CE68A]/50 bg-[#5CE68A]/15 text-[#121212] dark:border-[#5CE68A]/35 dark:bg-[#5CE68A]/15 dark:text-[#5CE68A]'
+              : 'border-[#DC2626]/35 bg-[#DC2626]/10 text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]'
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {feedback.type === 'success' ? (
               <CheckCircle2 className="h-4 w-4 shrink-0" />
             ) : (
@@ -267,32 +303,36 @@ const HabitGrid: React.FC = () => {
           <button
             type="button"
             onClick={() => setFeedback(null)}
-            className="opacity-70 hover:opacity-100 cursor-pointer"
+            aria-label="Dismiss notification"
+            className="flex h-7 w-7 items-center justify-center rounded-full opacity-75 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/10 cursor-pointer"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      {/* Day 31 Completion Celebration Banner */}
+      {/* Day 31 Completion Celebration Bento Card */}
       {isDay31Completed && (
-        <div className="rounded-2xl border border-[#10B981]/40 bg-[#11131C] p-6 shadow-lg">
+        <Card variant="emerald" className="p-6 sm:p-7">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/30">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#121212] text-[#5CE68A] dark:bg-[#5CE68A] dark:text-[#0D0914]">
                 <Award className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-[#F8FAFC]">
+                <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] opacity-75">
+                  Sprint Milestone Complete
+                </p>
+                <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em]">
                   31-Day Sprint Completed!
                 </h2>
-                <p className="mt-1 text-sm text-[#94A3B8]">
+                <p className="mt-1 text-sm opacity-85">
                   You finished with a{' '}
-                  <span className="font-mono-tabular font-semibold text-[#10B981]">
+                  <span className="font-mono-tabular font-bold">
                     {overallRate}%
                   </span>{' '}
                   completion rate ({stats?.completedActions ?? 0}/{stats?.totalActions ?? 0} actions) and a best streak of{' '}
-                  <span className="font-mono-tabular font-semibold text-[#F8FAFC]">
+                  <span className="font-mono-tabular font-bold">
                     {stats?.bestStreak ?? 0}d
                   </span>
                   .
@@ -301,10 +341,10 @@ const HabitGrid: React.FC = () => {
             </div>
             <Button
               type="button"
-              variant="emerald"
               size="lg"
               onClick={handleStartNextSprint}
               disabled={isRollingOver}
+              className="bg-[#121212] text-[#F4F4F2] hover:bg-[#262624] dark:bg-[#5CE68A] dark:text-[#0D0914] dark:hover:bg-[#4AD879]"
             >
               {isRollingOver ? (
                 <>
@@ -319,174 +359,126 @@ const HabitGrid: React.FC = () => {
               )}
             </Button>
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Top 12-Column Bento Header */}
+      {/* Asymmetrical 12-Column Bento Telemetry Header */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        {/* 1. 31-Day Interactive Progress Ribbon (lg:col-span-7) */}
-        <div className="lg:col-span-7 rounded-2xl border border-[#1E2330] bg-[#11131C] p-5">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        {/* 1. 31-Day DotMatrixRibbon Day Inspector (lg:col-span-6) */}
+        <div className="lg:col-span-6 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold text-[#F8FAFC]">
-                31-Day Sprint Progress Ribbon
-              </h2>
-              <p className="text-xs text-[#64748B]">
-                Click any day pill to inspect its execution log
+              <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                Sprint Cadence Inspector
               </p>
+              <h2 className="mt-0.5 text-base font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
+                31-Day Capsule Ribbon
+              </h2>
             </div>
-            <div className="flex items-center gap-3 text-[11px] text-[#94A3B8]">
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-[#10B981]" /> Closed
+
+            <div className="flex flex-wrap items-center gap-2 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-2.5 py-1 dark:bg-[#120D1D]">
+                <span className="h-2 w-2 rounded-full bg-[#5CE68A]" /> Closed
               </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-[#8B5CF6]" /> Today
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-2.5 py-1 dark:bg-[#120D1D]">
+                <span className="h-2 w-2 rounded-full bg-[#121212] dark:bg-[#D96BFF]" /> Today
               </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-[#F59E0B]" /> Tomorrow
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-2.5 py-1 dark:bg-[#120D1D]">
+                <span className="h-2 w-2 rounded-full bg-[#D98200] dark:bg-[#F5B841]" /> Planned
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-8 sm:grid-cols-11 gap-1.5">
-            {ribbonDays.map((day) => {
-              const info = daySeriesMap.get(day);
-              const isToday = day === currentDayNumber;
-              const isTomorrow = day === currentDayNumber + 1;
-              const isSelected = day === effectiveSelectedDay;
-              const isClosed = Boolean(info?.isClosed);
-              const isLogged = Boolean(info);
-
-              let pillClass =
-                'border-[#1E2330] bg-[#181C28] text-[#64748B] hover:border-[#8B5CF6]/40 hover:text-[#F8FAFC]';
-
-              if (isClosed) {
-                pillClass =
-                  'border-[#10B981]/40 bg-[#10B981]/15 text-[#10B981] hover:bg-[#10B981]/25';
-              } else if (isToday) {
-                pillClass =
-                  'border-[#8B5CF6] bg-[#7C3AED] text-[#F8FAFC] ring-2 ring-[#8B5CF6]/35';
-              } else if (isTomorrow && (info?.planned ?? 0) > 0) {
-                pillClass =
-                  'border-dashed border-[#F59E0B]/70 bg-[#F59E0B]/10 text-[#F59E0B]';
-              } else if (isLogged) {
-                pillClass =
-                  'border-[#8B5CF6]/40 bg-[#8B5CF6]/15 text-[#A78BFA]';
-              }
-
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() =>
-                    setSelectedDayNumber(day === currentDayNumber ? null : day)
-                  }
-                  className={`relative flex h-8 items-center justify-center rounded-lg border font-mono-tabular text-xs font-semibold transition-all cursor-pointer ${pillClass} ${
-                    isSelected && !isToday ? 'ring-2 ring-[#F8FAFC]/60' : ''
-                  }`}
-                  title={`Day ${day}${isToday ? ' (Today)' : ''}${isClosed ? ' · Closed' : ''}`}
-                >
-                  {String(day).padStart(2, '0')}
-                  {isToday && (
-                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-[#10B981] ring-2 ring-[#11131C]" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <DotMatrixRibbon
+            days={ribbonDays}
+            onSelectDay={(day) =>
+              setSelectedDayNumber(day === currentDayNumber ? null : day)
+            }
+          />
         </div>
 
-        {/* 2. Circular Completion Ring & Telemetry (lg:col-span-2) */}
-        <div className="lg:col-span-2 rounded-2xl border border-[#1E2330] bg-[#11131C] p-5 flex flex-col items-center justify-center text-center">
-          <div className="relative flex h-22 w-22 items-center justify-center">
-            <svg className="h-22 w-22 -rotate-90" viewBox="0 0 80 80">
-              <circle
-                cx="40"
-                cy="40"
-                r={radius}
-                stroke="#1E2330"
-                strokeWidth="7"
-                fill="none"
-              />
-              <circle
-                cx="40"
-                cy="40"
-                r={radius}
-                stroke={overallRate >= 75 ? '#10B981' : '#8B5CF6'}
-                strokeWidth="7"
-                strokeLinecap="round"
-                fill="none"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                className="transition-all duration-500"
-              />
-            </svg>
-            <span className="absolute font-mono-tabular text-base font-bold text-[#F8FAFC]">
-              {overallRate}%
-            </span>
+        {/* 2. ConcentricRing Completion Telemetry (lg:col-span-2) */}
+        <div className="lg:col-span-2 flex flex-col items-center justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-sand)] p-5 text-center">
+          <div className="w-full text-left">
+            <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+              Adherence
+            </p>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-3 w-full border-t border-[#1E2330] pt-3">
+
+          <div className="my-2">
+            <ConcentricRing
+              percentage={overallRate}
+              secondaryPercentage={todayCompletionRate}
+              size={108}
+              strokeWidth={10}
+              sublabel="CYCLE"
+            />
+          </div>
+
+          <div className="grid w-full grid-cols-2 gap-2 border-t border-[var(--border-hairline)] pt-3">
             <div>
-              <p className="font-mono-tabular text-sm font-bold text-[#F8FAFC]">
+              <p className="font-mono-tabular text-sm font-bold text-[var(--text-primary)]">
                 {stats?.daysLogged ?? 0}
               </p>
-              <p className="text-[10px] uppercase tracking-wider text-[#64748B]">Logged</p>
+              <p className="font-mono-tabular text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                Logged
+              </p>
             </div>
             <div>
-              <p className="inline-flex items-center gap-0.5 font-mono-tabular text-sm font-bold text-[#F59E0B]">
+              <p className="inline-flex items-center justify-center gap-0.5 font-mono-tabular text-sm font-bold text-[#D98200] dark:text-[#F5B841]">
                 <Flame className="h-3.5 w-3.5" />
                 {stats?.currentStreak ?? 0}d
               </p>
-              <p className="text-[10px] uppercase tracking-wider text-[#64748B]">Streak</p>
+              <p className="font-mono-tabular text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                Streak
+              </p>
             </div>
           </div>
         </div>
 
-        {/* 3. "Close Today" Gatekeeper Card (lg:col-span-3) */}
-        <div className="lg:col-span-3 rounded-2xl border border-[#1E2330] bg-[#11131C] p-5 flex flex-col justify-between">
+        {/* 3. High-Contrast Close Today Gatekeeper Card (lg:col-span-4) */}
+        <div className="lg:col-span-4 flex flex-col justify-between rounded-[28px] bg-[#121212] p-6 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
           <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
                 Close Day Gatekeeper
               </span>
               {todayLog?.isClosed ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#10B981]/15 px-2 py-0.5 text-[11px] font-semibold text-[#10B981]">
-                  <Lock className="h-3 w-3" /> Closed
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#5CE68A] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+                  <Lock className="h-3 w-3" /> CLOSED
                 </span>
               ) : (
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono-tabular text-[11px] font-semibold ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold ${
                     canCloseToday
-                      ? 'bg-[#10B981]/15 text-[#10B981]'
-                      : 'bg-[#F59E0B]/15 text-[#F59E0B]'
+                      ? 'bg-[#5CE68A] text-[#121212]'
+                      : 'bg-[#F5B841] text-[#121212]'
                   }`}
                 >
-                  {tomorrowPlannedCount} / {totalPillars}
+                  {String(tomorrowPlannedCount).padStart(2, '0')} / {String(totalPillars).padStart(2, '0')}
                 </span>
               )}
             </div>
 
-            <p className="mt-2 font-mono-tabular text-sm font-semibold text-[#F8FAFC]">
+            <p className="mt-3 text-base font-semibold tracking-[-0.015em]">
               {todayLog?.isClosed
                 ? `Day ${String(currentDayNumber).padStart(2, '0')} is locked`
                 : currentDayNumber >= 31
                 ? 'Final Day 31 ready to close'
-                : `${tomorrowPlannedCount} / ${totalPillars} Pillars Planned for Tomorrow`}
+                : `${tomorrowPlannedCount} of ${totalPillars} Pillars Planned for Tomorrow`}
             </p>
 
-            {/* Progress bar */}
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#171A26]">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  canCloseToday || todayLog?.isClosed ? 'bg-[#10B981]' : 'bg-[#F59E0B]'
-                }`}
-                style={{
-                  width: `${
-                    todayLog?.isClosed || currentDayNumber >= 31
-                      ? 100
-                      : Math.min(100, Math.round((tomorrowPlannedCount / totalPillars) * 100))
-                  }%`,
-                }}
+            <div className="mt-4">
+              <SegmentedBattery
+                total={totalPillars}
+                filled={
+                  todayLog?.isClosed || currentDayNumber >= 31
+                    ? totalPillars
+                    : tomorrowPlannedCount
+                }
+                label="Tomorrow Lock"
+                size="md"
+                variant="contrast"
               />
             </div>
           </div>
@@ -497,7 +489,11 @@ const HabitGrid: React.FC = () => {
             variant={canCloseToday ? 'emerald' : 'secondary'}
             disabled={!canCloseToday || isClosingDay}
             onClick={handleCloseDay}
-            className="mt-4 w-full text-xs"
+            className={`mt-5 w-full text-xs ${
+              !canCloseToday
+                ? 'border border-white/15 bg-white/10 text-white/75 hover:bg-white/10'
+                : ''
+            }`}
           >
             {isClosingDay ? (
               <>
@@ -507,12 +503,12 @@ const HabitGrid: React.FC = () => {
             ) : todayLog?.isClosed ? (
               <>
                 <Lock className="h-3.5 w-3.5" />
-                Today Closed & Tomorrow Locked
+                Today Closed &amp; Tomorrow Locked
               </>
             ) : (
               <>
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Close Today & Lock Tomorrow
+                Close Today &amp; Lock Tomorrow
               </>
             )}
           </Button>
@@ -521,14 +517,16 @@ const HabitGrid: React.FC = () => {
 
       {/* Sprint History Day Inspector Banner */}
       {isInspectingHistory && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[#8B5CF6]/40 bg-[#7C3AED]/10 px-5 py-3.5">
+        <div className="flex flex-col justify-between gap-3 rounded-[24px] border border-[#121212]/15 bg-[var(--bg-sand)] px-5 py-4 sm:flex-row sm:items-center dark:border-[#D96BFF]/35 dark:bg-[#1E1730]">
           <div className="flex items-center gap-3">
-            <Clock className="h-4 w-4 text-[#8B5CF6]" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+              <Clock className="h-4 w-4" />
+            </div>
             <div>
-              <p className="text-sm font-semibold text-[#F8FAFC]">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">
                 Inspecting Day {String(selectedDayNumber).padStart(2, '0')} (Read-Only History)
               </p>
-              <p className="text-xs text-[#94A3B8]">
+              <p className="font-mono-tabular text-xs text-[var(--text-secondary)]">
                 {displayedLog
                   ? `${displayedLog.plans.filter((p) => p.isCompleted).length} / ${displayedLog.plans.length} actions completed${displayedLog.isClosed ? ' · Day Closed' : ''}`
                   : 'No actions were logged on this day.'}
@@ -537,7 +535,7 @@ const HabitGrid: React.FC = () => {
           </div>
           <Button
             type="button"
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={() => setSelectedDayNumber(null)}
           >
@@ -547,10 +545,10 @@ const HabitGrid: React.FC = () => {
         </div>
       )}
 
-      {/* Unified 8-Pillar Matrix */}
-      <div className="overflow-hidden rounded-2xl border border-[#1E2330] bg-[#11131C]">
+      {/* Unified 8-Pillar Bento Matrix */}
+      <div className="overflow-hidden rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)]">
         {/* Matrix Column Headers (Desktop) */}
-        <div className="hidden lg:grid lg:grid-cols-12 gap-4 border-b border-[#1E2330] bg-[#12151E] px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+        <div className="hidden gap-4 border-b border-[var(--border-hairline)] bg-[var(--bg-sand)]/70 px-6 py-3.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:grid lg:grid-cols-12">
           <div className="col-span-3">8 Core Pillars</div>
           <div className="col-span-5 flex items-center justify-between">
             <span>
@@ -559,20 +557,20 @@ const HabitGrid: React.FC = () => {
                 : "Today's Execution"}
             </span>
             {isDisplayedDayClosed && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#10B981]/15 px-2 py-0.5 text-[10px] text-[#10B981]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#5CE68A] px-2.5 py-0.5 text-[10px] font-bold text-[#121212]">
                 <Lock className="h-3 w-3" /> Locked
               </span>
             )}
           </div>
           <div className="col-span-4 flex items-center justify-between">
             <span>Tomorrow&apos;s Proactive Plan</span>
-            <span className="font-mono-tabular text-[11px] text-[#F59E0B]">
+            <span className="rounded-full bg-[var(--bg-card)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
               {tomorrowPlannedCount}/{totalPillars} Planned
             </span>
           </div>
         </div>
 
-        <div className="divide-y divide-[#1E2330]">
+        <div className="divide-y divide-[var(--border-hairline)]">
           {categories.map((category) => {
             const meta = getPillarMeta(category.name);
             const Icon = meta.icon;
@@ -585,18 +583,24 @@ const HabitGrid: React.FC = () => {
             return (
               <div
                 key={category.id}
-                className="grid grid-cols-1 gap-4 px-4 py-4 sm:px-6 lg:grid-cols-12 lg:items-center hover:bg-[#171A26]/35 transition-colors"
+                className="grid grid-cols-1 gap-4 px-4 py-4 transition-colors hover:bg-[var(--bg-sand)]/35 sm:px-6 lg:grid-cols-12 lg:items-center"
               >
                 {/* Zone 1: Pillar Identity */}
-                <div className="lg:col-span-3 flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#1E2330] bg-[#171A26] text-[#8B5CF6]">
+                <div className="flex items-center gap-3 lg:col-span-3">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                      todayAction?.isCompleted
+                        ? 'border-[#5CE68A] bg-[#5CE68A] text-[#121212]'
+                        : 'border-[var(--border-hairline)] bg-[var(--bg-sand)] text-[var(--text-primary)]'
+                    }`}
+                  >
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="truncate text-[15px] font-semibold text-[#F8FAFC]">
+                    <h3 className="truncate text-[15px] font-semibold tracking-[-0.015em] text-[var(--text-primary)]">
                       {category.name}
                     </h3>
-                    <p className="truncate text-xs text-[#64748B]">
+                    <p className="truncate text-xs text-[var(--text-secondary)]">
                       {category.description}
                     </p>
                   </div>
@@ -604,7 +608,7 @@ const HabitGrid: React.FC = () => {
 
                 {/* Zone 2: Today's Execution (or Inspected Day) */}
                 <div className="lg:col-span-5">
-                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] lg:hidden">
+                  <div className="mb-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:hidden">
                     {isInspectingHistory
                       ? `Day ${String(selectedDayNumber).padStart(2, '0')} Log`
                       : "Today's Execution"}
@@ -612,25 +616,30 @@ const HabitGrid: React.FC = () => {
 
                   {todayAction ? (
                     <div
-                      className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition-all ${
+                      className={`flex items-center justify-between gap-2 rounded-[20px] border px-3.5 py-2.5 transition-colors ${
                         todayAction.isCompleted
-                          ? 'border-[#10B981]/30 bg-[#10B981]/5'
-                          : 'border-[#1E2330] bg-[#12151E]'
+                          ? 'border-[#5CE68A]/50 bg-[#5CE68A]/15 dark:border-[#5CE68A]/35 dark:bg-[#5CE68A]/10'
+                          : 'border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)]/70 dark:bg-[#120D1D]'
                       }`}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-3">
                         <button
                           type="button"
-                          disabled={!canMutateDisplayedDay || busyActionKey === `toggle-${todayAction.id}`}
+                          disabled={
+                            !canMutateDisplayedDay ||
+                            busyActionKey === `toggle-${todayAction.id}`
+                          }
                           onClick={() => handleToggle(todayAction)}
                           aria-label={`Toggle ${category.name} completion`}
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
                             todayAction.isCompleted
-                              ? 'border-[#10B981] bg-[#10B981] text-[#090A0F]'
-                              : 'border-[#64748B] bg-[#171A26] hover:border-[#8B5CF6]'
+                              ? 'border-[#5CE68A] bg-[#5CE68A] text-[#121212]'
+                              : 'border-[var(--border-strong)] bg-[var(--bg-card)] hover:border-[#121212] dark:hover:border-[#D96BFF]'
                           } ${!canMutateDisplayedDay ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                         >
-                          {todayAction.isCompleted && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                          {todayAction.isCompleted && (
+                            <Check className="h-3.5 w-3.5 stroke-[3]" />
+                          )}
                         </button>
 
                         {isEditingToday ? (
@@ -647,19 +656,21 @@ const HabitGrid: React.FC = () => {
                               }
                             }}
                             onBlur={() => void commitEdit(todayAction)}
-                            className="w-full rounded-lg border border-[#8B5CF6] bg-[#171A26] px-2.5 py-1 text-sm text-[#F8FAFC] focus:outline-none"
+                            className="w-full rounded-full border border-[#121212] bg-[var(--bg-card)] px-3 py-1 text-sm text-[var(--text-primary)] focus:outline-none dark:border-[#D96BFF]"
                           />
                         ) : (
                           <button
                             type="button"
                             disabled={!canMutateDisplayedDay}
                             onClick={() => canMutateDisplayedDay && beginEdit(todayAction)}
-                            className={`truncate text-left text-sm ${
+                            className={`truncate text-left text-sm font-medium ${
                               todayAction.isCompleted
-                                ? 'text-[#94A3B8] line-through'
-                                : 'text-[#F8FAFC]'
-                            } ${canMutateDisplayedDay ? 'cursor-text hover:text-[#8B5CF6]' : 'cursor-default'}`}
-                            title={canMutateDisplayedDay ? 'Click to edit' : todayAction.description}
+                                ? 'text-[var(--text-secondary)] line-through'
+                                : 'text-[var(--text-primary)]'
+                            } ${canMutateDisplayedDay ? 'cursor-text hover:opacity-80' : 'cursor-default'}`}
+                            title={
+                              canMutateDisplayedDay ? 'Click to edit' : todayAction.description
+                            }
                           >
                             {todayAction.description}
                           </button>
@@ -672,7 +683,7 @@ const HabitGrid: React.FC = () => {
                             type="button"
                             onClick={() => beginEdit(todayAction)}
                             aria-label={`Edit ${category.name} today goal`}
-                            className="rounded-lg p-1.5 text-[#64748B] hover:bg-[#171A26] hover:text-[#F8FAFC] cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
@@ -681,7 +692,7 @@ const HabitGrid: React.FC = () => {
                             onClick={() => handleDelete(todayAction.id)}
                             disabled={busyActionKey === `delete-${todayAction.id}`}
                             aria-label={`Delete ${category.name} today goal`}
-                            className="rounded-lg p-1.5 text-[#64748B] hover:bg-[#EF4444]/15 hover:text-[#EF4444] cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -706,7 +717,7 @@ const HabitGrid: React.FC = () => {
                           }))
                         }
                         placeholder="+ Set today's goal..."
-                        className="h-9 text-xs"
+                        className="h-10 text-xs"
                       />
                       {(todayDrafts[category.id] ?? '').trim() && (
                         <Button
@@ -719,7 +730,7 @@ const HabitGrid: React.FC = () => {
                       )}
                     </form>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-[#1E2330] bg-[#12151E]/50 px-3 py-2 text-xs italic text-[#64748B]">
+                    <div className="rounded-full border border-dashed border-[var(--border-strong)] bg-hatch-fine px-4 py-2 text-xs italic text-[var(--text-muted)]">
                       {isInspectingHistory
                         ? 'No goal recorded for this pillar'
                         : 'Day is closed'}
@@ -729,19 +740,19 @@ const HabitGrid: React.FC = () => {
 
                 {/* Zone 3: Tomorrow's Proactive Plan */}
                 <div className="lg:col-span-4">
-                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[#64748B] lg:hidden">
+                  <div className="mb-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:hidden">
                     Tomorrow&apos;s Proactive Plan
                   </div>
 
                   {currentDayNumber >= 31 ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-[#1E2330] bg-[#12151E] px-3 py-2 text-xs text-[#94A3B8]">
-                      <Sparkles className="h-3.5 w-3.5 text-[#10B981]" />
+                    <div className="flex items-center gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-sand)]/70 px-4 py-2 text-xs font-medium text-[var(--text-secondary)]">
+                      <Sparkles className="h-3.5 w-3.5 text-[#5CE68A]" />
                       Final Sprint Day — ready to complete!
                     </div>
                   ) : tomorrowAction ? (
-                    <div className="flex items-center justify-between gap-2 rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/5 px-3 py-2.5">
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <span className="h-2 w-2 shrink-0 rounded-full bg-[#F59E0B]" />
+                    <div className="flex items-center justify-between gap-2 rounded-[20px] border border-[#D98200]/30 bg-[#F5B841]/15 px-3.5 py-2.5 dark:border-[#F5B841]/30 dark:bg-[#F5B841]/10">
+                      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-[#D98200] dark:bg-[#F5B841]" />
                         {isEditingTomorrow ? (
                           <input
                             autoFocus
@@ -756,13 +767,13 @@ const HabitGrid: React.FC = () => {
                               }
                             }}
                             onBlur={() => void commitEdit(tomorrowAction)}
-                            className="w-full rounded-lg border border-[#8B5CF6] bg-[#171A26] px-2.5 py-1 text-sm text-[#F8FAFC] focus:outline-none"
+                            className="w-full rounded-full border border-[#121212] bg-[var(--bg-card)] px-3 py-1 text-sm text-[var(--text-primary)] focus:outline-none dark:border-[#F5B841]"
                           />
                         ) : (
                           <button
                             type="button"
                             onClick={() => beginEdit(tomorrowAction)}
-                            className="truncate text-left text-sm text-[#F8FAFC] hover:text-[#F59E0B] cursor-text"
+                            className="truncate text-left text-sm font-medium text-[var(--text-primary)] hover:opacity-80 cursor-text"
                             title="Click to edit tomorrow's plan"
                           >
                             {tomorrowAction.description}
@@ -772,14 +783,14 @@ const HabitGrid: React.FC = () => {
 
                       {!isEditingTomorrow && (
                         <div className="flex shrink-0 items-center gap-1">
-                          <span className="hidden sm:inline-flex rounded-md bg-[#10B981]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#10B981]">
+                          <span className="hidden rounded-full bg-[#5CE68A] px-2 py-0.5 font-mono-tabular text-[9px] font-bold uppercase tracking-[0.08em] text-[#121212] sm:inline-flex">
                             Planned
                           </span>
                           <button
                             type="button"
                             onClick={() => beginEdit(tomorrowAction)}
                             aria-label={`Edit ${category.name} tomorrow goal`}
-                            className="rounded-lg p-1.5 text-[#64748B] hover:bg-[#171A26] hover:text-[#F8FAFC] cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
@@ -788,7 +799,7 @@ const HabitGrid: React.FC = () => {
                             onClick={() => handleDelete(tomorrowAction.id)}
                             disabled={busyActionKey === `delete-${tomorrowAction.id}`}
                             aria-label={`Delete ${category.name} tomorrow goal`}
-                            className="rounded-lg p-1.5 text-[#64748B] hover:bg-[#EF4444]/15 hover:text-[#EF4444] cursor-pointer"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -813,7 +824,7 @@ const HabitGrid: React.FC = () => {
                           }))
                         }
                         placeholder="+ Plan tomorrow's action..."
-                        className="h-9 text-xs border-dashed focus:border-solid"
+                        className="h-10 border-dashed text-xs focus:border-solid"
                       />
                       {(tomorrowDrafts[category.id] ?? '').trim() && (
                         <Button
@@ -822,7 +833,7 @@ const HabitGrid: React.FC = () => {
                           variant="secondary"
                           disabled={busyActionKey === `tomorrow-${category.id}`}
                         >
-                          <Plus className="h-3.5 w-3.5 text-[#F59E0B]" />
+                          <Plus className="h-3.5 w-3.5 text-[#D98200] dark:text-[#F5B841]" />
                         </Button>
                       )}
                     </form>

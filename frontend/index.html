@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -12,8 +12,31 @@
       rel="stylesheet"
     />
     <title>Proactive 31-Day Habit Tracker | Command Center</title>
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('proactive31-theme');
+          var theme = 'light';
+          if (raw) {
+            if (raw === 'dark' || raw === 'light') {
+              theme = raw;
+            } else {
+              var parsed = JSON.parse(raw);
+              if (parsed && parsed.state && (parsed.state.theme === 'dark' || parsed.state.theme === 'light')) {
+                theme = parsed.state.theme;
+              }
+            }
+          }
+          document.documentElement.classList.toggle('dark', theme === 'dark');
+          document.documentElement.dataset.theme = theme;
+        } catch (_e) {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-[#090A0F] text-[#F8FAFC] antialiased selection:bg-[#7C3AED]/30 selection:text-[#F8FAFC]">
+  <body class="bg-[var(--bg-canvas)] text-[var(--text-primary)] antialiased selection:bg-[var(--accent-primary)]/40 selection:text-[var(--text-primary)]">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

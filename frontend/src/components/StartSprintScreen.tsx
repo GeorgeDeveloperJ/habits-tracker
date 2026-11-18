@@ -1,8 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { AlertTriangle, Calendar, Loader2, Rocket, Sparkles, Wand2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Calendar,
+  Check,
+  Loader2,
+  Rocket,
+  Wand2,
+} from 'lucide-react';
 import { useHabits } from '../context/useHabits';
 import { getPillarMeta } from '../lib/pillars';
 import type { InitialGoalInput } from '../services/api';
+import { DotMatrixRibbon, SegmentedBattery } from './charts/HardwareViz';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -19,6 +27,8 @@ const StartSprintScreen: React.FC = () => {
       d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return { startLabel: fmt(start), endLabel: fmt(end) };
   }, []);
+
+  const totalPillars = categories.length || 8;
 
   const plannedCount = useMemo(
     () =>
@@ -60,77 +70,111 @@ const StartSprintScreen: React.FC = () => {
     }
   };
 
-  const sprintNodes = Array.from({ length: 31 }, (_, i) => i + 1);
+  const previewDays = useMemo(
+    () =>
+      Array.from({ length: 31 }, (_, i) => ({
+        dayNumber: i + 1,
+        isToday: i === 0,
+      })),
+    []
+  );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      {/* Top 31-Node Calendar Preview */}
-      <div className="rounded-2xl border border-[#1E2330] bg-[#11131C] p-6 sm:p-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#1E2330] bg-[#171A26] px-3 py-1 text-xs font-semibold text-[#8B5CF6]">
-              <Sparkles className="h-3.5 w-3.5" />
-              31-Day Sprint Launchpad
-            </div>
-            <h1 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-[#F8FAFC]">
-              Commit to Your Next 31-Day Sprint
+    <div className="mx-auto max-w-7xl space-y-4">
+      {/* Asymmetrical Top Bento Header */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        {/* Left Hero Bento Card (lg:col-span-8) */}
+        <div className="lg:col-span-8 flex flex-col justify-between rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-6 sm:p-8">
+          <div>
+            <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+              31-Day Sprint Launchpad · 8 Core Pillars
+            </p>
+            <h1 className="mt-2.5 text-4xl sm:text-[44px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
+              Commit to Your{' '}
+              <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                <Rocket className="h-5 w-5 stroke-[2.3]" />
+              </span>{' '}
+              31-Day Sprint
             </h1>
-            <p className="mt-2 text-sm text-[#94A3B8] leading-relaxed">
-              Every sprint spans 31 consecutive days across your 8 Core Pillars. Set your Day 1 execution targets below—or launch right away and plan inline.
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">
+              Every sprint spans 31 consecutive days across your 8 Core Pillars. Set your Day 1 execution targets below—or launch immediately and plan inline.
             </p>
           </div>
 
-          <div className="flex shrink-0 flex-col gap-2 rounded-xl border border-[#1E2330] bg-[#12151E] px-4 py-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
-              <Calendar className="h-3.5 w-3.5 text-[#8B5CF6]" />
-              Sprint Window
+          <div className="mt-6 border-t border-[var(--border-hairline)] pt-5">
+            <div className="mb-2.5 flex items-center justify-between">
+              <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                31-Day Capsule Cadence Preview
+              </span>
+              <span className="font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
+                DAY 01 ACTIVE
+              </span>
             </div>
-            <p className="font-mono-tabular text-sm font-semibold text-[#F8FAFC]">
-              {dateWindow.startLabel} → {dateWindow.endLabel}
-            </p>
-            <p className="font-mono-tabular text-xs text-[#10B981]">
-              {plannedCount} / {categories.length || 8} Day 1 Pillars Queued
-            </p>
+            <DotMatrixRibbon days={previewDays} interactive={false} />
           </div>
         </div>
 
-        {/* 31-Node Preview Strip */}
-        <div className="mt-6 grid grid-cols-8 sm:grid-cols-16 lg:grid-cols-31 gap-1.5">
-          {sprintNodes.map((day) => (
-            <div
-              key={day}
-              className={`flex h-8 items-center justify-center rounded-lg font-mono-tabular text-xs font-semibold ${
-                day === 1
-                  ? 'bg-[#7C3AED] text-[#F8FAFC] ring-2 ring-[#8B5CF6]/40'
-                  : 'border border-[#1E2330] bg-[#171A26] text-[#64748B]'
-              }`}
-              title={`Day ${day}`}
-            >
-              {String(day).padStart(2, '0')}
+        {/* Right High-Contrast Readiness Card (lg:col-span-4) */}
+        <div className="lg:col-span-4 flex flex-col justify-between rounded-[32px] bg-[#121212] p-6 sm:p-7 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+                <Calendar className="h-3.5 w-3.5 text-[#E6FA72] dark:text-[#D96BFF]" />
+                Sprint Window
+              </span>
+              <span className="rounded-full bg-[#5CE68A] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+                31 DAYS
+              </span>
             </div>
-          ))}
+
+            <p className="mt-3 font-mono-tabular text-sm font-semibold text-white/90">
+              {dateWindow.startLabel} → {dateWindow.endLabel}
+            </p>
+
+            <div className="mt-6 flex items-baseline gap-2">
+              <span className="font-mono-tabular text-[48px] font-semibold leading-none tracking-[-0.04em] text-[#E6FA72] dark:text-[#D96BFF]">
+                {String(plannedCount).padStart(2, '0')}
+              </span>
+              <span className="font-mono-tabular text-lg font-medium text-white/50">
+                / {String(totalPillars).padStart(2, '0')} PILLARS
+              </span>
+            </div>
+            <p className="mt-1.5 text-xs text-white/65">
+              Day 1 targets queued before launch
+            </p>
+          </div>
+
+          <div className="mt-6 border-t border-white/10 pt-5">
+            <SegmentedBattery
+              total={totalPillars}
+              filled={plannedCount}
+              label="Day 1 Readiness"
+              size="lg"
+              variant="contrast"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Day 1 Pillar Kickoff Wizard */}
-      <div className="rounded-2xl border border-[#1E2330] bg-[#11131C] p-6 sm:p-8">
+      {/* Day 1 Pillar Kickoff Bento Grid */}
+      <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-6 sm:p-8">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-[#F8FAFC]">
-              Day 1 Pillar Kickoff Wizard (Optional)
-            </h2>
-            <p className="text-xs text-[#94A3B8] mt-0.5">
-              Click a suggestion chip or type a concrete Day 1 action for each pillar.
+            <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+              Optional Kickoff Configuration
             </p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
+              Day 1 Pillar Kickoff Wizard
+            </h2>
           </div>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={handlePrefillAll}
             className="w-fit"
           >
-            <Wand2 className="h-3.5 w-3.5 text-[#8B5CF6]" />
+            <Wand2 className="h-3.5 w-3.5" />
             Fill Recommended Day 1 Kit
           </Button>
         </div>
@@ -140,25 +184,41 @@ const StartSprintScreen: React.FC = () => {
             const meta = getPillarMeta(category.name);
             const Icon = meta.icon;
             const currentVal = goalInputs[category.id] ?? '';
+            const isQueued = currentVal.trim().length > 0;
 
             return (
               <div
                 key={category.id}
-                className="rounded-xl border border-[#1E2330] bg-[#12151E] p-4 transition-colors hover:border-[#8B5CF6]/40"
+                className={`rounded-[24px] border p-5 transition-colors ${
+                  isQueued
+                    ? 'border-[#121212]/25 bg-[#E6FA72]/20 dark:border-[#D96BFF]/40 dark:bg-[#1E1730]'
+                    : 'border-[var(--border-hairline)] bg-[var(--bg-sand)]/50 dark:bg-[#120D1D]'
+                }`}
               >
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#171A26] text-[#8B5CF6]">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                        isQueued
+                          ? 'bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                          : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-hairline)]'
+                      }`}
+                    >
                       <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-[#F8FAFC]">{category.name}</h3>
-                      <p className="text-xs text-[#64748B]">{category.description}</p>
+                      <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                        {category.name}
+                      </h3>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        {category.description}
+                      </p>
                     </div>
                   </div>
-                  {currentVal.trim() && (
-                    <span className="rounded-full bg-[#10B981]/15 px-2 py-0.5 font-mono-tabular text-[11px] font-semibold text-[#10B981]">
-                      Ready
+                  {isQueued && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#5CE68A] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+                      <Check className="h-3 w-3 stroke-[2.5]" />
+                      READY
                     </span>
                   )}
                 </div>
@@ -172,21 +232,24 @@ const StartSprintScreen: React.FC = () => {
                   placeholder={`Set Day 1 goal for ${category.name}...`}
                 />
 
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  {meta.suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => handleChipClick(category.id, suggestion)}
-                      className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
-                        currentVal === suggestion
-                          ? 'border-[#8B5CF6] bg-[#7C3AED]/20 text-[#F8FAFC]'
-                          : 'border-[#1E2330] bg-[#171A26] text-[#94A3B8] hover:border-[#8B5CF6]/50 hover:text-[#F8FAFC]'
-                      }`}
-                    >
-                      + {suggestion}
-                    </button>
-                  ))}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {meta.suggestions.map((suggestion) => {
+                    const selected = currentVal === suggestion;
+                    return (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => handleChipClick(category.id, suggestion)}
+                        className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                          selected
+                            ? 'border-[#121212] bg-[#121212] text-[#E6FA72] dark:border-[#D96BFF] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                            : 'border-[var(--border-hairline)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+                        }`}
+                      >
+                        + {suggestion}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -194,14 +257,14 @@ const StartSprintScreen: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mt-6 flex items-center gap-3 rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 p-4 text-sm text-[#EF4444]">
+          <div className="mt-6 flex items-center gap-3 rounded-[20px] border border-[#DC2626]/30 bg-[#DC2626]/10 p-4 text-sm text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#1E2330] pt-6">
-          <p className="text-xs text-[#94A3B8]">
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[var(--border-hairline)] pt-6">
+          <p className="text-xs text-[var(--text-secondary)]">
             You can add, edit, or delete goals inline at any time during Day 1.
           </p>
           <Button
@@ -209,7 +272,7 @@ const StartSprintScreen: React.FC = () => {
             onClick={handleStartSprint}
             disabled={isStarting}
             size="lg"
-            className="w-full sm:w-auto font-semibold"
+            className="w-full sm:w-auto"
           >
             {isStarting ? (
               <>

@@ -7,13 +7,17 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
+  Sun,
   X,
   Zap,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 import { useHabits } from '../context/useHabits';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Button } from './ui/button';
+import { SegmentedBattery } from './charts/HardwareViz';
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -21,10 +25,14 @@ export default function AppLayout() {
 
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  const { activeCycle, progress } = useHabits();
+  const theme = useThemeStore((state) => state.theme);
+  const toggleTheme = useThemeStore((state) => state.toggleTheme);
+  const { activeCycle, progress, categories } = useHabits();
   const navigate = useNavigate();
 
   const currentDay = progress?.stats?.currentDayNumber ?? (activeCycle ? 1 : 0);
+  const tomorrowPlannedCount = progress?.stats?.tomorrowPlannedCount ?? 0;
+  const totalPillars = categories.length || 8;
   const userEmail = user?.email ?? 'member@proactive31.app';
   const initials = userEmail.slice(0, 2).toUpperCase();
 
@@ -35,190 +43,265 @@ export default function AppLayout() {
 
   const navItems = [
     { to: '/', label: 'Command Center', icon: LayoutDashboard, end: true },
-    { to: '/analytics', label: 'Analytics & Balance', icon: BarChart3, end: false },
+    { to: '/analytics', label: 'Analytics & Telemetry', icon: BarChart3, end: false },
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#090A0F] text-[#F8FAFC]">
-      {/* Desktop Collapsible Left Navigation Rail */}
-      <aside
-        className={`hidden md:flex flex-col justify-between border-r border-[#1E2330] bg-[#12151E] transition-all duration-200 shrink-0 ${
-          collapsed ? 'w-20' : 'w-64'
-        }`}
-      >
-        <div>
-          {/* Brand Header */}
-          <div className="flex h-16 items-center justify-between border-b border-[#1E2330] px-4">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#7C3AED] text-white shadow-sm shadow-[#7C3AED]/30">
-                <Zap className="h-4 w-4" />
+    <div className="flex min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+      {/* Desktop High-Contrast Floating Vertical Pill Dock */}
+      <aside className="hidden md:flex shrink-0 p-3 pr-0">
+        <div
+          className={`sticky top-3 flex h-[calc(100vh-24px)] flex-col justify-between rounded-[28px] bg-[#121212] text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF] transition-all duration-200 ${
+            collapsed ? 'w-[80px] p-3' : 'w-[248px] p-4'
+          }`}
+        >
+          <div>
+            {/* Brand Lockup + Collapse Pill */}
+            <div
+              className={`flex items-center ${
+                collapsed ? 'flex-col gap-3' : 'justify-between gap-2'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                  <Zap className="h-4 w-4 stroke-[2.5]" />
+                </div>
+                {!collapsed && (
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold tracking-tight">
+                      Proactive<span className="text-[#E6FA72] dark:text-[#D96BFF]">31</span>
+                    </p>
+                    <p className="font-mono-tabular truncate text-[10px] uppercase tracking-[0.14em] text-white/50">
+                      8-Pillar Engine
+                    </p>
+                  </div>
+                )}
               </div>
-              {!collapsed && (
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold tracking-tight text-[#F8FAFC]">
-                    Proactive<span className="text-[#8B5CF6]">31</span>
+
+              <button
+                type="button"
+                onClick={() => setCollapsed((prev) => !prev)}
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/75 hover:bg-white/15 hover:text-white transition-colors cursor-pointer"
+              >
+                {collapsed ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+
+            {/* Sprint Telemetry Block */}
+            <div
+              className={`mt-5 rounded-[22px] border border-white/10 bg-white/[0.05] ${
+                collapsed ? 'flex flex-col items-center px-2 py-3' : 'p-3.5'
+              }`}
+            >
+              {!collapsed ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                      Active Sprint
+                    </span>
+                    <span className="h-2 w-2 rounded-full bg-[#5CE68A]" />
+                  </div>
+                  <p className="mt-1 font-mono-tabular text-lg font-bold tracking-tight">
+                    {activeCycle
+                      ? `Day ${String(currentDay).padStart(2, '0')} / 31`
+                      : 'Ready to Launch'}
                   </p>
-                  <p className="truncate text-[11px] text-[#64748B]">Habit Command</p>
+                  {activeCycle && (
+                    <div className="mt-3">
+                      <SegmentedBattery
+                        total={totalPillars}
+                        filled={tomorrowPlannedCount}
+                        label="Next Lock"
+                        size="sm"
+                        variant="contrast"
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <span className="h-2 w-2 rounded-full bg-[#5CE68A]" />
+                  <span className="font-mono-tabular text-xs font-bold text-[#E6FA72] dark:text-[#D96BFF]">
+                    {activeCycle ? `D${String(currentDay).padStart(2, '0')}` : '--'}
+                  </span>
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => setCollapsed((prev) => !prev)}
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#1E2330] bg-[#171A26] text-[#94A3B8] hover:text-[#F8FAFC] transition-colors cursor-pointer"
-            >
-              {collapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronLeft className="h-4 w-4" />
-              )}
-            </button>
+
+            {/* Solid Stadium-Pill Navigation */}
+            <nav className="mt-5 space-y-1.5" aria-label="Main navigation">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-full px-3.5 py-2.5 text-sm font-semibold transition-colors ${
+                        isActive
+                          ? 'bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                          : 'text-white/70 hover:bg-white/[0.08] hover:text-white'
+                      } ${collapsed ? 'justify-center px-0 h-11 w-11 mx-auto' : ''}`
+                    }
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span className="truncate">{item.label}</span>}
+                  </NavLink>
+                );
+              })}
+            </nav>
           </div>
 
-          {/* Sprint Badge */}
-          <div className="px-3 pt-4">
+          {/* User Session & Logout */}
+          <div className="space-y-2.5 border-t border-white/10 pt-3.5">
             <div
-              className={`rounded-xl border border-[#1E2330] bg-[#171A26] px-3 py-2.5 ${
-                collapsed ? 'flex flex-col items-center' : ''
+              className={`flex items-center gap-2.5 rounded-full bg-white/[0.06] ${
+                collapsed ? 'justify-center p-1.5' : 'px-2.5 py-2'
               }`}
             >
+              <Avatar className="h-8 w-8 border-white/15">
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
               {!collapsed && (
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">
-                  Active Sprint
-                </p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold">{userEmail}</p>
+                  <p className="font-mono-tabular text-[10px] uppercase tracking-[0.12em] text-[#5CE68A]">
+                    Session Live
+                  </p>
+                </div>
               )}
-              <p className="font-mono-tabular text-sm font-bold text-[#8B5CF6] mt-0.5">
-                {activeCycle
-                  ? collapsed
-                    ? `D${String(currentDay).padStart(2, '0')}`
-                    : `Day ${String(currentDay).padStart(2, '0')} / 31`
-                  : collapsed
-                  ? '--'
-                  : 'No Sprint'}
-              </p>
             </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Log Out"
+              className={`flex items-center gap-2 rounded-full border border-white/15 bg-transparent text-xs font-semibold text-white/75 hover:border-[#F87171]/50 hover:bg-[#F87171]/15 hover:text-[#F87171] transition-colors cursor-pointer ${
+                collapsed ? 'h-10 w-10 mx-auto justify-center' : 'w-full px-4 py-2.5'
+              }`}
+            >
+              <LogOut className="h-3.5 w-3.5 shrink-0" />
+              {!collapsed && <span>Log Out</span>}
+            </button>
           </div>
-
-          {/* Navigation Links */}
-          <nav className="mt-5 space-y-1.5 px-3" aria-label="Main navigation">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-[#7C3AED]/15 text-[#F8FAFC] border border-[#8B5CF6]/40'
-                        : 'text-[#94A3B8] hover:bg-[#171A26] hover:text-[#F8FAFC] border border-transparent'
-                    } ${collapsed ? 'justify-center' : ''}`
-                  }
-                  title={collapsed ? item.label : undefined}
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-[#8B5CF6]" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </NavLink>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* User Profile & Logout */}
-        <div className="border-t border-[#1E2330] p-3 space-y-2.5">
-          <div
-            className={`flex items-center gap-2.5 rounded-xl bg-[#171A26]/70 p-2 ${
-              collapsed ? 'justify-center' : ''
-            }`}
-          >
-            <Avatar className="h-8 w-8">
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            {!collapsed && (
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-[#F8FAFC]">{userEmail}</p>
-                <p className="text-[11px] text-[#10B981]">Active Session</p>
-              </div>
-            )}
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size={collapsed ? 'icon' : 'sm'}
-            onClick={handleLogout}
-            className={collapsed ? 'w-full' : 'w-full justify-start text-[#94A3B8] hover:text-[#EF4444]'}
-            title="Log Out"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Log Out</span>}
-          </Button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content Shell */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile Header */}
-        <header className="flex h-14 items-center justify-between border-b border-[#1E2330] bg-[#12151E] px-4 md:hidden">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7C3AED] text-white">
-              <Zap className="h-4 w-4" />
+        {/* Recessed Top Pill Bar (Desktop + Mobile) */}
+        <header className="px-3 pt-3 sm:px-6 sm:pt-4">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-3 py-2 sm:px-4">
+            {/* Left: Mobile Brand + Live Day Pill */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 md:hidden">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                  <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
+                </div>
+                <span className="text-sm font-bold tracking-tight">Proactive31</span>
+              </div>
+
+              <div className="hidden md:flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-card)] px-3 py-1 font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#5CE68A]" />
+                  {activeCycle
+                    ? `SPRINT DAY ${String(currentDay).padStart(2, '0')} / 31`
+                    : 'SPRINT LAUNCHPAD'}
+                </span>
+                {activeCycle && (
+                  <span className="hidden lg:inline-flex items-center rounded-full bg-[var(--bg-card)] px-3 py-1 font-mono-tabular text-[11px] font-medium text-[var(--text-secondary)] border border-[var(--border-hairline)]">
+                    TOMORROW: {tomorrowPlannedCount}/{totalPillars} PILLARS
+                  </span>
+                )}
+              </div>
+
+              {activeCycle && (
+                <span className="inline-flex md:hidden items-center rounded-full bg-[var(--bg-card)] px-2.5 py-1 font-mono-tabular text-[11px] font-semibold border border-[var(--border-hairline)]">
+                  D{String(currentDay).padStart(2, '0')}/31
+                </span>
+              )}
             </div>
-            <span className="text-sm font-bold">
-              Proactive<span className="text-[#8B5CF6]">31</span>
-            </span>
-            {activeCycle && (
-              <span className="ml-2 rounded-md bg-[#171A26] px-2 py-0.5 font-mono-tabular text-xs font-semibold text-[#8B5CF6]">
-                Day {String(currentDay).padStart(2, '0')}/31
+
+            {/* Right: Theme Toggle Pill + Mobile Menu Toggle */}
+            <div className="flex items-center gap-2">
+              <button
+                id="theme-toggle-btn"
+                type="button"
+                onClick={toggleTheme}
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="h-3.5 w-3.5 text-[#F5B841]" />
+                    <span className="hidden sm:inline">Light Stone</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-3.5 w-3.5 text-[#121212]" />
+                    <span className="hidden sm:inline">Obsidian Dark</span>
+                  </>
+                )}
+              </button>
+
+              <span className="hidden md:inline-flex items-center rounded-full bg-[var(--bg-card)] border border-[var(--border-hairline)] px-3 py-1.5 font-mono-tabular text-[11px] text-[var(--text-secondary)] max-w-[190px] truncate">
+                {userEmail}
               </span>
-            )}
+
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] text-[var(--text-primary)] md:hidden cursor-pointer"
+                aria-label="Toggle mobile menu"
+              >
+                {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="rounded-lg border border-[#1E2330] bg-[#171A26] p-2 text-[#94A3B8]"
-            aria-label="Toggle mobile menu"
-          >
-            {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
+
+          {/* Mobile Recessed Dropdown */}
+          {mobileMenuOpen && (
+            <div className="mt-2 rounded-[24px] border border-[var(--border-hairline)] bg-[#121212] p-4 text-[#F4F4F2] dark:bg-[#171224] dark:text-[#F7F5FF] space-y-2 md:hidden">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-semibold ${
+                        isActive
+                          ? 'bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                          : 'text-white/75 hover:bg-white/10'
+                      }`
+                    }
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+              <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                <span className="truncate text-xs text-white/70">{userEmail}</span>
+                <Button type="button" variant="danger" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-3.5 w-3.5" />
+                  Log Out
+                </Button>
+              </div>
+            </div>
+          )}
         </header>
 
-        {mobileMenuOpen && (
-          <div className="border-b border-[#1E2330] bg-[#12151E] p-4 space-y-2 md:hidden">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${
-                      isActive
-                        ? 'bg-[#7C3AED]/15 text-[#F8FAFC] border border-[#8B5CF6]/40'
-                        : 'text-[#94A3B8]'
-                    }`
-                  }
-                >
-                  <Icon className="h-4 w-4 text-[#8B5CF6]" />
-                  <span>{item.label}</span>
-                </NavLink>
-              );
-            })}
-            <div className="flex items-center justify-between pt-2 border-t border-[#1E2330]">
-              <span className="truncate text-xs text-[#94A3B8]">{userEmail}</span>
-              <Button type="button" variant="danger" size="sm" onClick={handleLogout}>
-                <LogOut className="h-3.5 w-3.5" />
-                Log Out
-              </Button>
-            </div>
-          </div>
-        )}
-
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-3 sm:p-6 lg:p-8">
           <div className="mx-auto max-w-7xl">
             <Outlet />
           </div>

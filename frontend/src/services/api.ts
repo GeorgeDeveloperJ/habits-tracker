@@ -122,6 +122,49 @@ export interface InitialGoalInput {
   description: string;
 }
 
+export interface ForgotPasswordResult {
+  resetToken?: string;
+  expiresAt?: string;
+  message?: string;
+}
+
+// ==========================================
+// Auth & Password Recovery
+// ==========================================
+
+export const requestPasswordReset = async (
+  email: string
+): Promise<ForgotPasswordResult | null> => {
+  const response = await apiClient.post('/auth/forgot-password', {
+    email: email.trim(),
+  });
+  const data = response.data?.data as { resetToken?: string; expiresAt?: string } | null;
+  const message = response.data?.message as string | undefined;
+  if (!data) {
+    return message ? { message } : null;
+  }
+  return {
+    resetToken: data.resetToken,
+    expiresAt: data.expiresAt,
+    message,
+  };
+};
+
+export const resetPassword = async (payload: {
+  token: string;
+  password: string;
+}): Promise<{ message: string }> => {
+  const response = await apiClient.post('/auth/reset-password', {
+    token: payload.token.trim(),
+    password: payload.password,
+  });
+  return {
+    message:
+      response.data?.message ||
+      'Password has been reset successfully. You can now sign in.',
+  };
+};
+
 // ==========================================
 // Habit Categories
 // ==========================================

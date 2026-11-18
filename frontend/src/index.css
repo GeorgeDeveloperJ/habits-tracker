@@ -1,25 +1,78 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Focused Obsidian & Electric Violet Design Tokens (DESIGN.md) */
-  --bg-canvas: #090A0F;
-  --bg-canvas-alt: #0B0D13;
-  --bg-surface: #11131C;
-  --bg-surface-alt: #12151E;
-  --bg-elevated: #171A26;
-  --bg-elevated-alt: #181C28;
-  --border-subtle: #1E2330;
-  --accent-violet: #7C3AED;
-  --accent-violet-light: #8B5CF6;
-  --accent-emerald: #10B981;
-  --accent-amber: #F59E0B;
-  --accent-danger: #EF4444;
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
+  /* Light / Warm Stone & Acid Lime / Spring Green Palette */
+  --bg-canvas: #F4F4F2;
+  --bg-canvas-warm: #EAE9E4;
+  --bg-card: #FFFFFF;
+  --bg-sand: #EBE6DC;
+  --bg-contrast: #121212;
+  --bg-recessed: #EAE9E4;
+  --text-contrast: #F4F4F2;
+  --text-contrast-muted: #9C998E;
+
+  --accent-primary: #E6FA72;
+  --accent-primary-fg: #121212;
+  --accent-secondary: #5CE68A;
+  --accent-secondary-fg: #121212;
+  --accent-amber: #D98200;
+  --accent-danger: #DC2626;
+
+  --border-hairline: rgba(18, 18, 18, 0.08);
+  --border-strong: rgba(18, 18, 18, 0.16);
+
+  --text-primary: #121212;
+  --text-secondary: #5A5850;
+  --text-muted: #8B887E;
+
+  --hatch-color: rgba(18, 18, 18, 0.13);
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(18, 18, 18, 0.10);
+
+  /* Legacy compatibility tokens */
+  --bg-surface: var(--bg-card);
+  --bg-elevated: var(--bg-sand);
+  --border-subtle: var(--border-hairline);
+}
+
+.dark {
+  /* Deep Obsidian-Violet & Luminous Orchid / Warm Amber Palette */
+  --bg-canvas: #0D0914;
+  --bg-canvas-warm: #120D1C;
+  --bg-card: #171224;
+  --bg-sand: #1E1730;
+  --bg-contrast: #231B38;
+  --bg-recessed: #120D1D;
+  --text-contrast: #F7F5FF;
+  --text-contrast-muted: #9E92BC;
+
+  --accent-primary: #D96BFF;
+  --accent-primary-fg: #0D0914;
+  --accent-secondary: #F5B841;
+  --accent-secondary-fg: #0D0914;
+  --accent-emerald: #5CE68A;
+  --accent-amber: #F5B841;
+  --accent-danger: #F87171;
+
+  --border-hairline: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --text-primary: #F7F5FF;
+  --text-secondary: #A99EC4;
+  --text-muted: #6E628C;
+
+  --hatch-color: rgba(255, 255, 255, 0.11);
+  --glass-bg: rgba(23, 18, 36, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.10);
+
+  /* Legacy compatibility tokens */
+  --bg-surface: var(--bg-card);
+  --bg-elevated: var(--bg-sand);
+  --border-subtle: var(--border-hairline);
 }
 
 @theme {
@@ -34,6 +87,7 @@ body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .font-mono-tabular {
@@ -41,25 +95,54 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Ensure SVGs don't overflow their containers if classes are missing */
+/* Tactile diagonal hatch texture for empty, projected, or unlogged hardware tracks */
+.bg-hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--hatch-color),
+    var(--hatch-color) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+}
+
+.bg-hatch-fine {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--hatch-color),
+    var(--hatch-color) 1.5px,
+    transparent 1.5px,
+    transparent 5px
+  );
+}
+
+/* Frosted glass pill overlays for contextual 2D vector diagrams */
+.glass-pill {
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Ensure SVGs don't overflow their containers */
 svg {
   display: block;
   vertical-align: middle;
   max-width: 100%;
 }
 
-/* Custom subtle dark scrollbar */
+/* Theme-aware subtle scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090A0F;
+  background: var(--bg-canvas);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1E2330;
+  background: var(--border-strong);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #7C3AED;
+  background: var(--text-muted);
 }

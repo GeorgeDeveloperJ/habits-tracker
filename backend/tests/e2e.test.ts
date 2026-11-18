@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import http from 'node:http';
 import { after, before, describe, it } from 'node:test';
 import type { Express } from 'express';
@@ -64,7 +65,7 @@ async function registerTestUser(label: string, password = 'Password123!') {
   });
   assert.equal(res.status, 201, `Expected 201 registering ${label}, got ${res.status}`);
   createdUserIds.push(res.body.data.id);
-  return { email, password, ...res.body.data };
+  return { password, ...res.body.data };
 }
 
 async function cleanupTestUsers() {
@@ -80,6 +81,7 @@ async function cleanupTestUsers() {
   const ids = users.map((u) => u.id);
   if (ids.length === 0) return;
 
+  await prisma.passwordResetToken.deleteMany({ where: { userId: { in: ids } } });
   await prisma.plannedAction.deleteMany({ where: { userId: { in: ids } } });
   await prisma.dailyLog.deleteMany({ where: { userId: { in: ids } } });
   await prisma.cycle.deleteMany({ where: { userId: { in: ids } } });
@@ -195,6 +197,150 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
         const res = await apiRequest<{ status: string; message: string }>('/api/health');
         assert.equal(res.status, 200);
         assert.equal(res.body.status, 'success');
+      });
+    });
+
+    describe('Forgot & Reset Password (FEAT-04)', () => {
+      it('T1-AUTH-PW-01: POST /api/auth/forgot-password issues resetToken in test env and stores SHA-256 tokenHash in DB', async () => {
+        const user = await registerTestUser('t1_pw_req');
+        const res = await apiRequest<{
+          success: boolean;
+          message: string;
+          data: { resetToken: string; expiresAt: string };
+        }>('/api/auth/forgot-password', {
+          method: 'POST',
+          body: { email: user.email },
+        });
+
+        assert.equal(res.status, 200);
+        assert.equal(res.body.success, true);
+        assert.equal(
+          res.body.message,
+          'If an account with that email exists, password reset instructions have been generated.'
+        );
+        assert.ok(res.body.data.resetToken.length === 64);
+        assert.ok(new Date(res.body.data.expiresAt).getTime() > Date.now());
+
+        const expectedHash = crypto
+          .createHash('sha256')
+          .update(res.body.data.resetToken)
+          .digest('hex');
+        const dbToken = await prisma.passwordResetToken.findUnique({
+          where: { tokenHash: expectedHash },
+        });
+        assert.ok(dbToken, 'SHA-256 hashed token must be persisted in PasswordResetToken');
+        assert.notEqual(dbToken.tokenHash, res.body.data.resetToken);
+        assert.equal(dbToken.userId, user.id);
+        assert.equal(dbToken.usedAt, null);
+      });
+
+      it('T1-AUTH-PW-02: POST /api/auth/forgot-password trims whitespace and matches email case-insensitively', async () => {
+        const user = await registerTestUser('t1_pw_case');
+        const res = await apiRequest<{
+          success: boolean;
+          data: { resetToken: string; expiresAt: string } | null;
+        }>('/api/auth/forgot-password', {
+          method: 'POST',
+          body: { email: `  ${user.email.toUpperCase()}  ` },
+        });
+
+        assert.equal(res.status, 200);
+        assert.equal(res.body.success, true);
+        assert.ok(res.body.data?.resetToken, 'Case-insensitive email should resolve user and issue token');
+      });
+
+      it('T1-AUTH-PW-03: POST /api/auth/reset-password resets password with valid token and marks token used', async () => {
+        const user = await registerTestUser('t1_pw_reset');
+        const forgot = await apiRequest<{
+          data: { resetToken: string };
+        }>('/api/auth/forgot-password', {
+          method: 'POST',
+          body: { email: user.email },
+        });
+
+        const reset = await apiRequest<{
+          success: boolean;
+          message: string;
+          data: null;
+        }>('/api/auth/reset-password', {
+          method: 'POST',
+          body: { token: `  ${forgot.body.data.resetToken}  `, password: 'NewPassword123!' },
+        });
+
+        assert.equal(reset.status, 200);
+        assert.equal(reset.body.success, true);
+        assert.equal(reset.body.message, 'Password has been reset successfully. You can now sign in.');
+        assert.equal(reset.body.data, null);
+
+        const expectedHash = crypto
+          .createHash('sha256')
+          .update(forgot.body.data.resetToken)
+          .digest('hex');
+        const dbToken = await prisma.passwordResetToken.findUnique({
+          where: { tokenHash: expectedHash },
+        });
+        assert.ok(dbToken?.usedAt, 'Token must be marked usedAt after reset');
+      });
+
+      it('T1-AUTH-PW-04: POST /api/auth/login succeeds with new password and rejects old password after reset', async () => {
+        const user = await registerTestUser('t1_pw_login', 'OldPassword123!');
+        const forgot = await apiRequest<{ data: { resetToken: string } }>(
+          '/api/auth/forgot-password',
+          { method: 'POST', body: { email: user.email } }
+        );
+
+        const reset = await apiRequest('/api/auth/reset-password', {
+          method: 'POST',
+          body: { token: forgot.body.data.resetToken, password: 'RotatedPassword999!' },
+        });
+        assert.equal(reset.status, 200);
+
+        const oldLogin = await apiRequest('/api/auth/login', {
+          method: 'POST',
+          body: { email: user.email, password: 'OldPassword123!' },
+        });
+        assert.equal(oldLogin.status, 401);
+
+        const newLogin = await apiRequest<{
+          success: boolean;
+          data: { token: string; id: string; email: string };
+        }>('/api/auth/login', {
+          method: 'POST',
+          body: { email: user.email, password: 'RotatedPassword999!' },
+        });
+        assert.equal(newLogin.status, 200);
+        assert.equal(newLogin.body.success, true);
+        assert.equal(newLogin.body.data.id, user.id);
+        assert.equal(newLogin.body.data.email, user.email);
+        assert.ok(newLogin.body.data.token.length > 20);
+      });
+
+      it('T1-AUTH-PW-05: re-requesting forgot-password invalidates prior unused token and issues fresh valid token', async () => {
+        const user = await registerTestUser('t1_pw_supersede');
+        const first = await apiRequest<{ data: { resetToken: string } }>(
+          '/api/auth/forgot-password',
+          { method: 'POST', body: { email: user.email } }
+        );
+        const second = await apiRequest<{ data: { resetToken: string } }>(
+          '/api/auth/forgot-password',
+          { method: 'POST', body: { email: user.email } }
+        );
+
+        assert.notEqual(first.body.data.resetToken, second.body.data.resetToken);
+
+        const useFirst = await apiRequest<{ success: boolean }>('/api/auth/reset-password', {
+          method: 'POST',
+          body: { token: first.body.data.resetToken, password: 'Attempt1Password!' },
+        });
+        assert.equal(useFirst.status, 400);
+        assert.equal(useFirst.body.success, false);
+
+        const useSecond = await apiRequest<{ success: boolean }>('/api/auth/reset-password', {
+          method: 'POST',
+          body: { token: second.body.data.resetToken, password: 'Attempt2Password!' },
+        });
+        assert.equal(useSecond.status, 200);
+        assert.equal(useSecond.body.success, true);
       });
     });
 
@@ -485,6 +631,166 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
 
         const badAuth = await apiRequest('/api/cycles', { token: 'invalid.jwt.token' });
         assert.equal(badAuth.status, 401);
+      });
+    });
+
+    describe('Forgot & Reset Password Validation & Security Boundaries', () => {
+      it('T2-AUTH-PW-01: POST /api/auth/forgot-password rejects malformed or empty email with 400', async () => {
+        const malformed = await apiRequest<{ success: boolean }>('/api/auth/forgot-password', {
+          method: 'POST',
+          body: { email: 'not-an-email' },
+        });
+        assert.equal(malformed.status, 400);
+        assert.equal(malformed.body.success, false);
+
+        const empty = await apiRequest<{ success: boolean }>('/api/auth/forgot-password', {
+          method: 'POST',
+          body: { email: '   ' },
+        });
+        assert.equal(empty.status, 400);
+        assert.equal(empty.body.success, false);
+      });
+
+      it('T2-AUTH-PW-02: anti-enumeration returns identical 200 data: null for unregistered email and in NODE_ENV=production', async () => {
+        const expectedMessage =
+          'If an account with that email exists, password reset instructions have been generated.';
+
+        const unregistered = await apiRequest<{
+          success: boolean;
+          message: string;
+          data: null;
+        }>('/api/auth/forgot-password', {
+          method: 'POST',
+          body: { email: uniqueEmail('t2_pw_unreg') },
+        });
+        assert.equal(unregistered.status, 200);
+        assert.equal(unregistered.body.success, true);
+        assert.equal(unregistered.body.message, expectedMessage);
+        assert.equal(unregistered.body.data, null);
+
+        const user = await registerTestUser('t2_pw_prod');
+        const prevNodeEnv = process.env.NODE_ENV;
+        const prevExpose = process.env.EXPOSE_RESET_TOKEN;
+        try {
+          process.env.NODE_ENV = 'production';
+          delete process.env.EXPOSE_RESET_TOKEN;
+
+          const prodRes = await apiRequest<{
+            success: boolean;
+            message: string;
+            data: null;
+          }>('/api/auth/forgot-password', {
+            method: 'POST',
+            body: { email: user.email },
+          });
+
+          assert.equal(prodRes.status, 200);
+          assert.equal(prodRes.body.success, true);
+          assert.equal(prodRes.body.message, expectedMessage);
+          assert.equal(prodRes.body.data, null);
+        } finally {
+          process.env.NODE_ENV = prevNodeEnv;
+          if (prevExpose !== undefined) {
+            process.env.EXPOSE_RESET_TOKEN = prevExpose;
+          } else {
+            delete process.env.EXPOSE_RESET_TOKEN;
+          }
+        }
+      });
+
+      it('T2-AUTH-PW-03: POST /api/auth/reset-password rejects missing token, short password, and unknown token with 400 (never 401)', async () => {
+        const missingToken = await apiRequest<{ success: boolean }>('/api/auth/reset-password', {
+          method: 'POST',
+          body: { token: '   ', password: 'ValidPassword123!' },
+        });
+        assert.equal(missingToken.status, 400);
+        assert.equal(missingToken.body.success, false);
+
+        const shortPw = await apiRequest<{ success: boolean }>('/api/auth/reset-password', {
+          method: 'POST',
+          body: { token: 'some-token', password: '12345' },
+        });
+        assert.equal(shortPw.status, 400);
+        assert.equal(shortPw.body.success, false);
+
+        const unknownToken = await apiRequest<{ success: boolean; message: string }>(
+          '/api/auth/reset-password',
+          {
+            method: 'POST',
+            body: { token: 'f'.repeat(64), password: 'ValidPassword123!' },
+          }
+        );
+        assert.equal(unknownToken.status, 400);
+        assert.equal(unknownToken.body.success, false);
+        assert.equal(unknownToken.body.message, 'Invalid or expired password reset token.');
+      });
+
+      it('T2-AUTH-PW-04: POST /api/auth/reset-password rejects expired token with 400 (never 401)', async () => {
+        const user = await registerTestUser('t2_pw_expired');
+        const forgot = await apiRequest<{ data: { resetToken: string } }>(
+          '/api/auth/forgot-password',
+          { method: 'POST', body: { email: user.email } }
+        );
+        const tokenHash = crypto
+          .createHash('sha256')
+          .update(forgot.body.data.resetToken)
+          .digest('hex');
+
+        await prisma.passwordResetToken.update({
+          where: { tokenHash },
+          data: { expiresAt: new Date(Date.now() - 60 * 1000) },
+        });
+
+        const res = await apiRequest<{ success: boolean; message: string }>(
+          '/api/auth/reset-password',
+          {
+            method: 'POST',
+            body: { token: forgot.body.data.resetToken, password: 'NewPassword123!' },
+          }
+        );
+        assert.equal(res.status, 400);
+        assert.equal(res.body.success, false);
+        assert.equal(res.body.message, 'Invalid or expired password reset token.');
+      });
+
+      it('T2-AUTH-PW-05: POST /api/auth/reset-password enforces atomic single-use (rejects reuse & concurrent replay with 400)', async () => {
+        const user = await registerTestUser('t2_pw_reuse', 'InitialPass123!');
+        const forgot = await apiRequest<{ data: { resetToken: string } }>(
+          '/api/auth/forgot-password',
+          { method: 'POST', body: { email: user.email } }
+        );
+
+        // Concurrent replay: only one request can claim the token
+        const [r1, r2] = await Promise.all([
+          apiRequest<{ success: boolean }>('/api/auth/reset-password', {
+            method: 'POST',
+            body: { token: forgot.body.data.resetToken, password: 'FirstWinPassword!' },
+          }),
+          apiRequest<{ success: boolean }>('/api/auth/reset-password', {
+            method: 'POST',
+            body: { token: forgot.body.data.resetToken, password: 'SecondRacePassword!' },
+          }),
+        ]);
+        const statuses = [r1.status, r2.status].sort((a, b) => a - b);
+        assert.deepEqual(statuses, [200, 400]);
+
+        // Sequential reuse must also fail with 400
+        const reuse = await apiRequest<{ success: boolean; message: string }>(
+          '/api/auth/reset-password',
+          {
+            method: 'POST',
+            body: { token: forgot.body.data.resetToken, password: 'ThirdAttemptPassword!' },
+          }
+        );
+        assert.equal(reuse.status, 400);
+        assert.equal(reuse.body.success, false);
+
+        // Old password must fail with 401
+        const oldLogin = await apiRequest('/api/auth/login', {
+          method: 'POST',
+          body: { email: user.email, password: 'InitialPass123!' },
+        });
+        assert.equal(oldLogin.status, 401);
       });
     });
 
@@ -837,6 +1143,56 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
       assert.equal(oldCycle?.isActive, false);
       assert.equal(oldCycle?.summary.completedActions, 1);
       assert.equal(newCycle?.isActive, true);
+    });
+
+    it('T3-PAIR-05 (Password Reset x Multi-Tenancy & Data Retention): resetting User A password retains User A sprint data and never impacts User B', async () => {
+      const userA = await registerTestUser('t3_pw_userA', 'UserAPass123!');
+      const userB = await registerTestUser('t3_pw_userB', 'UserBPass123!');
+
+      await apiRequest('/api/cycles', {
+        method: 'POST',
+        token: userA.token,
+        body: { initialGoals: [{ categoryId: categories[0].id, description: 'User A retained goal' }] },
+      });
+      await apiRequest('/api/cycles', {
+        method: 'POST',
+        token: userB.token,
+        body: { initialGoals: [{ categoryId: categories[1].id, description: 'User B untouched goal' }] },
+      });
+
+      const forgotA = await apiRequest<{ data: { resetToken: string } }>(
+        '/api/auth/forgot-password',
+        { method: 'POST', body: { email: userA.email } }
+      );
+      const resetA = await apiRequest('/api/auth/reset-password', {
+        method: 'POST',
+        body: { token: forgotA.body.data.resetToken, password: 'UserANewPass123!' },
+      });
+      assert.equal(resetA.status, 200);
+
+      const loginA = await apiRequest<{ data: { token: string } }>('/api/auth/login', {
+        method: 'POST',
+        body: { email: userA.email, password: 'UserANewPass123!' },
+      });
+      assert.equal(loginA.status, 200);
+
+      const progA = await apiRequest<{
+        todayLog: { plans: Array<{ description: string }> };
+      }>('/api/cycle-progress/current', { token: loginA.body.data.token });
+      assert.equal(progA.status, 200);
+      assert.equal(progA.body.todayLog.plans[0].description, 'User A retained goal');
+
+      // User B's credentials and data remain completely unaffected
+      const loginB = await apiRequest<{ data: { token: string } }>('/api/auth/login', {
+        method: 'POST',
+        body: { email: userB.email, password: 'UserBPass123!' },
+      });
+      assert.equal(loginB.status, 200);
+      const progB = await apiRequest<{
+        todayLog: { plans: Array<{ description: string }> };
+      }>('/api/cycle-progress/current', { token: loginB.body.data.token });
+      assert.equal(progB.status, 200);
+      assert.equal(progB.body.todayLog.plans[0].description, 'User B untouched goal');
     });
   });
 
@@ -1201,6 +1557,92 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
       assert.equal(progRes.status, 200);
       assert.equal(progRes.body.success, true);
       assert.deepEqual(progRes.body.stats, progRes.body.data.stats);
+    });
+
+    it('T4-SCEN-07: Locked-Out User Password Recovery & Sprint Continuation', async () => {
+      const user = await registerTestUser('t4_recovery', 'OriginalSecret123!');
+
+      const cyc = await apiRequest<{ data: { id: string } }>('/api/cycles', {
+        method: 'POST',
+        token: user.token,
+        body: {
+          initialGoals: [{ categoryId: categories[0].id, description: 'Complete recovery Day 1 goal' }],
+        },
+      });
+      assert.equal(cyc.status, 201);
+
+      // User forgets password and fails login
+      const failedLogin = await apiRequest('/api/auth/login', {
+        method: 'POST',
+        body: { email: user.email, password: 'ForgottenWrongPassword!' },
+      });
+      assert.equal(failedLogin.status, 401);
+
+      // Request password reset
+      const forgotRes = await apiRequest<{
+        success: boolean;
+        data: { resetToken: string; expiresAt: string };
+      }>('/api/auth/forgot-password', {
+        method: 'POST',
+        body: { email: user.email },
+      });
+      assert.equal(forgotRes.status, 200);
+      assert.ok(forgotRes.body.data.resetToken);
+
+      // Reset password
+      const resetRes = await apiRequest<{ success: boolean }>('/api/auth/reset-password', {
+        method: 'POST',
+        body: { token: forgotRes.body.data.resetToken, password: 'RecoveredSecret456!' },
+      });
+      assert.equal(resetRes.status, 200);
+
+      // Old password fails, token reuse fails
+      const oldLogin = await apiRequest('/api/auth/login', {
+        method: 'POST',
+        body: { email: user.email, password: 'OriginalSecret123!' },
+      });
+      assert.equal(oldLogin.status, 401);
+
+      const replayRes = await apiRequest('/api/auth/reset-password', {
+        method: 'POST',
+        body: { token: forgotRes.body.data.resetToken, password: 'AnotherPassword789!' },
+      });
+      assert.equal(replayRes.status, 400);
+
+      // Log in with new password and continue sprint
+      const newLogin = await apiRequest<{
+        success: boolean;
+        data: { token: string; id: string; email: string };
+      }>('/api/auth/login', {
+        method: 'POST',
+        body: { email: user.email, password: 'RecoveredSecret456!' },
+      });
+      assert.equal(newLogin.status, 200);
+      assert.equal(newLogin.body.data.id, user.id);
+
+      const progBefore = await apiRequest<{
+        todayLog: { plans: Array<{ id: string; isCompleted: boolean }> };
+      }>('/api/cycle-progress/current', { token: newLogin.body.data.token });
+      assert.equal(progBefore.status, 200);
+      assert.equal(progBefore.body.todayLog.plans.length, 1);
+
+      const completeAct = await apiRequest<{ success: boolean; data: { isCompleted: boolean } }>(
+        `/api/actions/${progBefore.body.todayLog.plans[0].id}`,
+        {
+          method: 'PATCH',
+          token: newLogin.body.data.token,
+          body: { isCompleted: true },
+        }
+      );
+      assert.equal(completeAct.status, 200);
+      assert.equal(completeAct.body.data.isCompleted, true);
+
+      const progAfter = await apiRequest<{ stats: { overallCompletionRate: number } }>(
+        '/api/cycle-progress/current',
+        { token: newLogin.body.data.token }
+      );
+      assert.equal(progAfter.status, 200);
+      assert.equal(progAfter.body.stats.overallCompletionRate, 100);
     });
   });
 });

@@ -77,16 +77,30 @@ model PlannedAction {
 
 // 5. The User
 model User {
-  id              String      @id @default(uuid())
-  email           String      @unique
-  hashedPassword  String
+  id                  String               @id @default(uuid())
+  email               String               @unique
+  hashedPassword      String
 
   // Relations
-  cycles          Cycle[]
-  logs            DailyLog[]
-  plans           PlannedAction[]
+  cycles              Cycle[]
+  logs                DailyLog[]
+  plans               PlannedAction[]
+  passwordResetTokens PasswordResetToken[]
 
-  
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+// 6. Password Reset Token
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
