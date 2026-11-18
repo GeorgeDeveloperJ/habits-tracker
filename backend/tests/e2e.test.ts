@@ -8,6 +8,7 @@ process.env.NODE_ENV = 'test';
 
 import 'dotenv/config';
 import { prisma } from '../src/config/db';
+import { resolveCorsOrigins } from '../src/middlewares/cors';
 
 let app: Express;
 let server: http.Server;
@@ -151,8 +152,11 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
   // =========================================================================
   describe('Tier 1: Happy-Path Tests', () => {
     describe('Auth & Habit Categories (FIX-03a, FIX-04)', () => {
-      it('allows password recovery preflight from the dev frontend and rejects unrelated origins', async () => {
-        const stagingOrigin = 'https://habits-tracker-git-dev-george-santana-s-projects.vercel.app';
+      it('allows password recovery preflight from configured frontends and rejects unrelated origins', async () => {
+        const allowedOrigins = [
+          'https://habits-tracker-git-dev-george-santana-s-projects.vercel.app',
+          'https://habits.krakenserv.dev',
+        ];
         const preflight = (origin: string) => fetch(`${baseUrl}/api/auth/forgot-password`, {
           method: 'OPTIONS',
           headers: {
@@ -161,11 +165,21 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
             'Access-Control-Request-Headers': 'content-type',
           },
         });
-        const allowed = await preflight(stagingOrigin);
-        assert.equal(allowed.status, 204);
-        assert.equal(allowed.headers.get('access-control-allow-origin'), stagingOrigin);
+        for (const origin of allowedOrigins) {
+          const allowed = await preflight(origin);
+          assert.equal(allowed.status, 204);
+          assert.equal(allowed.headers.get('access-control-allow-origin'), origin);
+        }
         const denied = await preflight('https://unrelated.example.test');
         assert.equal(denied.headers.get('access-control-allow-origin'), null);
+
+        assert.ok(resolveCorsOrigins({}).includes('https://habits.krakenserv.dev'));
+        assert.deepEqual(
+          resolveCorsOrigins({
+            CORS_ORIGINS: ' https://habits.krakenserv.dev/ , https://habits-tracker-flame.vercel.app , https://habits.krakenserv.dev ',
+          }),
+          ['https://habits.krakenserv.dev', 'https://habits-tracker-flame.vercel.app']
+        );
       });
 
       it('T1-AUTH-01: registers user and returns 201 with { token, id, email }', async () => {

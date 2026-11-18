@@ -17,6 +17,10 @@ logger.error(\`Failed to create daily log: \${error.message}\`);
 ```
 
 *Note: Currently, the logger is configured strictly for console transport. Future iterations will include file transports (e.g., `error.log`) for persistent monitoring.*
+## CORS & Proxy Configuration
+
+By default, the backend allows `http://localhost:5173`, `https://habits.krakenserv.dev`, and the Vercel frontend origins configured in `backend/src/middlewares/cors.ts`. Set `CORS_ORIGINS` to a comma-separated list of `https://` origins in production to override the default allowlist without modifying code. Set `DB_ADAPTER=neon` when connecting to Neon serverless PostgreSQL.
+
 ## Password recovery email
 
 Set `SMTP_URL` to an authenticated SMTP URL using `smtps://` or `smtp://` with STARTTLS. Supply the credentials through the deployment secret store and percent-encode reserved URL characters. Set `PASSWORD_RESET_FROM` to the provider's verified sender and `PUBLIC_APP_URL` to the frontend origin. Production requires an HTTPS origin. Deploy the frontend with a fallback to `index.html` for direct visits to `/reset-password`.
