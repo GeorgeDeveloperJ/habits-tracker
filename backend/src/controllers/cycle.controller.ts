@@ -75,7 +75,9 @@ export const startCycle = async ( req: Request, res: Response ) => {
             (error.code === 'P2002' || (error.code === 'P2010' && error.meta?.code === '55P03'))) {
             return res.status(409).json({ success: false, message: 'Another cycle start is in progress. Refresh and try again.' });
         }
-        logger.error(`Error starting cycle: ${(error as Error).message}`);
+        // Database diagnostics can include the user's goal text.
+        const code = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : 'unexpected';
+        logger.error(`Error starting cycle (${code})`);
         return res.status( 500 ).json({
             success: false,
             message: 'Error starting cycle'

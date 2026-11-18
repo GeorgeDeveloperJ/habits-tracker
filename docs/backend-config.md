@@ -25,11 +25,11 @@ Omit all three values to disable password recovery. The API responds with HTTP 5
 
 Authentication limits use PostgreSQL so all API replicas share the same counters. If a reverse proxy terminates incoming traffic, set `TRUSTED_PROXY_CIDRS` to the comma-separated addresses or CIDRs of your trusted proxies. Leave it unset for direct connections. Run `DELETE FROM "AuthRateBucket" WHERE "expiresAt" <= CURRENT_TIMESTAMP` periodically as a database maintenance task.
 
-The authentication migration checks for email case collisions before lowercasing stored email addresses. Resolve collisions through account ownership review before retrying a failed migration. The migration also retires outstanding reset links. Users with tokens issued before this release must sign in again.
+The authentication migration checks for email case collisions before lowercasing stored email addresses. Resolve collisions through account ownership review before applying the migration. If Prisma already recorded a failed attempt, confirm the transaction rolled back, then run `./node_modules/.bin/prisma migrate resolve --rolled-back 20261118165500_harden_auth_identity` from the release tools image before rerunning `migrate deploy`. The migration also retires outstanding reset links. Users with tokens issued before this release must sign in again.
 
 ### Release checks and recovery
 
-Before running the authentication migration on an existing database, back up the database and check for duplicate rows grouped by `lower("email")`. Rehearse the upgrade on an isolated restore. The cycle migration keeps the newest active cycle for each user and retains the other cycles as history.
+Before running the authentication migration on an existing database, back up the database and check for duplicate rows grouped by `lower("email")`. Rehearse the upgrade on an isolated restore. Drain the old API instances or disable their password recovery route before migrating so they cannot issue more links during cutover. The cycle migration keeps the newest active cycle for each user and retains the other cycles as history.
 
 After migration, confirm `/api/ready` succeeds and complete password recovery through the configured mail provider using a staging account. Check that the prior session stops working. If delivery fails, remove the three email settings and restart the hardened API to disable recovery while investigating. Use a corrected image for auth rollbacks so the old reset-token response remains retired.
 
