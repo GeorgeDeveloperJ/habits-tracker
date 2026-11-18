@@ -15,9 +15,9 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       contrast:
         'bg-[var(--bg-contrast)] text-[var(--text-contrast)] border border-white/[0.06]',
       accent:
-        'bg-[#E6FA72] text-[#121212] border border-[#121212]/10 dark:bg-[#D96BFF] dark:text-[#0D0914] dark:border-white/10',
+        'bg-[#E6FA72] text-[#121212] border border-[#121212]/10 dark:bg-orchid dark:text-[#0D0914] dark:border-white/10',
       emerald:
-        'bg-[#5CE68A] text-[#121212] border border-[#121212]/10 dark:bg-[#1E1730] dark:text-[#F7F5FF] dark:border-[#5CE68A]/25',
+        'bg-complete text-[#121212] border border-[#121212]/10 dark:bg-[#1E1730] dark:text-[#F7F5FF] dark:border-complete/25',
     };
 
     return (

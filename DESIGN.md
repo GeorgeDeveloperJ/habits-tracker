@@ -14,7 +14,7 @@
    - Buttons, navigation tabs, status badges, chart bars, progress segments, input controls, and inline headline icon containers all use full stadium pill geometry (`9999px` radius).
 3. **High-Contrast Anchor Chrome**:
    - Navigation is anchored by a stark, solid container—a floating vertical pill dock on desktop (`#121212` matte black in Light/Warm mode; `#171224` elevated plum with `1px solid rgba(255,255,255,0.06)` in Dark mode) paired with a recessed top pill bar (`rounded-full`) housing the Theme Toggle, live `Day XX / 31` telemetry pill, and session controls.
-   - Active navigation states use solid high-contrast stadium pills (`#E6FA72` Acid Lime in Light/Warm; `#D96BFF` Orchid / `#F5B841` Amber in Dark) rather than muted text shifts.
+   - Active navigation states use solid high-contrast stadium pills (`#E6FA72` Acid Lime in Light/Warm; `#B69ACC` Orchid / `#D4A968` Amber in Dark) rather than muted text shifts.
 4. **Editorial & Utilitarian Typography**:
    - Oversized, tightly tracked geometric sans-serif headings and primary KPI numerals (`36px`–`48px`, `tracking-[-0.03em]`, `Plus Jakarta Sans`).
    - **Inline Icon Badges**: Main headings embed stadium-pill icon containers directly inline between words.
@@ -57,13 +57,13 @@ Theme state is persisted via `useThemeStore` (`localStorage` key `'proactive31-t
 | **Card Surface (Plum)** | `#171224` | `--bg-card` | Elevated plum-tinted Bento cards & dock |
 | **Elevated Plum** | `#1E1730` | `--bg-sand` | Secondary Bento blocks & interactive inputs |
 | **Deep Contrast** | `#231B38` | `--bg-contrast` | Contrast KPI/gatekeeper surface |
-| **Primary Accent (Orchid Purple)** | `#D96BFF` | `--accent-primary` | Luminous active indicators, primary accents |
-| **Secondary Accent (Warm Amber)** | `#F5B841` | `--accent-secondary` | Luminous warm amber highlights, proactive plans |
-| **Success (Spring Green)** | `#5CE68A` | `--accent-emerald` | Completed actions, closed day states |
+| **Primary Accent (Orchid Purple)** | `#B69ACC` | `--accent-primary` | Selected indicators, primary accents |
+| **Secondary Accent (Warm Amber)** | `#D4A968` | `--accent-secondary` | Warm amber highlights, proactive plans |
+| **Completed (Sage)** | `#AAB8AA` | `--accent-complete` | Completed actions, closed day states |
 | **Hairline Border** | `rgba(255, 255, 255, 0.06)` | `--border-hairline` | Ultra-thin low-opacity card dividers |
 | **Text Primary** | `#F7F5FF` | `--text-primary` | Headlines, KPI numerals, active descriptions |
 | **Text Secondary** | `#A99EC4` | `--text-secondary` | Supporting copy, pillar subtitles |
-| **Text Muted** | `#6E628C` | `--text-muted` | Micro-labels, empty hatched states |
+| **Text Muted** | `#A093B6` | `--text-muted` | Micro-labels, empty hatched states |
 
 ---
 
@@ -97,7 +97,7 @@ Theme state is persisted via `useThemeStore` (`localStorage` key `'proactive31-t
 ### Screen 2 — 31-Day Sprint Launchpad (`StartSprintScreen.tsx`)
 - **Asymmetrical Top Bento Row (`gap-4`)**:
   - `lg:col-span-8`: Editorial `40px` heading with inline stadium-pill icon badge + interactive 31-node `DotMatrixRibbon` preview.
-  - `lg:col-span-4`: High-contrast readiness block (`#121212` with `#E6FA72` accents in light; `#171224` with `#D96BFF`/`#F5B841` in dark) showing Sprint Window dates and `SegmentedBattery` (`plannedCount / 8`).
+  - `lg:col-span-4`: High-contrast readiness block (`#121212` with `#E6FA72` accents in light; `#171224` with `#B69ACC`/`#D4A968` in dark) showing Sprint Window dates and `SegmentedBattery` (`plannedCount / 8`).
 - **Day 1 Kickoff Bento Grid**:
   - 8 Pillar Bento cards (`rounded-[24px]`) with `#kickoff-input-${category.id}`, stadium suggestion chips, one-click kit prefill, and stadium-pill `#launch-sprint-btn`.
 
@@ -108,5 +108,5 @@ Theme state is persisted via `useThemeStore` (`localStorage` key `'proactive31-t
   - Asymmetrical Bento header (`DotMatrixRibbon` 31-day inspector + `ConcentricRing` telemetry + high-contrast `SegmentedBattery` Close Today Gatekeeper `#close-today-btn`) above the **Unified 8-Pillar Bento Matrix** (`#today-input-${category.id}`, `#tomorrow-input-${category.id}`, inline edit/delete, Day 31 rollover).
 
 ### Screen 4 — Hardware Telemetry Analytics (`/analytics`, `AnalyticsDashboard.tsx`)
-- **Asymmetrical Bento KPI Cluster**: Accent-filled hero completion card (`#E6FA72` / `#5CE68A` or `#D96BFF`) with `48px` numeral + `ConcentricRing`, paired with white/sand/contrast KPI tiles and `SegmentedBattery` readiness.
+- **Asymmetrical Bento KPI Cluster**: Accent-filled hero completion card (`#E6FA72` / `#5CE68A` or `#B69ACC`) with `48px` numeral + `ConcentricRing`, paired with white/sand/contrast KPI tiles and `SegmentedBattery` readiness.
 - **Hardware Data Visualizations**: `CapsuleBarChart` for 31-Day Consistency Trend (dashed ghost tracks, internal indicator dots, diagonal hatch states) and 8-Pillar Balance, plus flat Bento breakdown table and activity stream.

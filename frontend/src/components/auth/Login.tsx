@@ -1,3 +1,6 @@
+import { translateFeedback } from '../../i18n/messages';
+import LanguageToggle from '../LanguageToggle';
+import { useLanguage } from '../../i18n/useLanguage';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -23,6 +26,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 
 export function AuthShowcasePanel() {
+  const { t } = useLanguage();
   const previewDays = Array.from({ length: 31 }, (_, i) => {
     const dayNumber = i + 1;
     return {
@@ -40,27 +44,27 @@ export function AuthShowcasePanel() {
       <div className="flex flex-col justify-between rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-8">
         <div className="flex items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-3.5 py-1.5 dark:bg-[#1E1730]">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
               <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
             </span>
             <span className="text-xs font-bold tracking-tight">Proactive31</span>
           </div>
-          <span className="rounded-full bg-[#E6FA72] px-3 py-1 font-mono-tabular text-[10px] font-bold uppercase tracking-[0.14em] text-[#121212] dark:bg-[#D96BFF]/20 dark:text-[#D96BFF]">
-            8-Pillar Telemetry
+          <span className="rounded-full bg-[#E6FA72] px-3 py-1 font-mono-tabular text-[10px] font-bold uppercase tracking-[0.14em] text-[#121212] dark:bg-orchid/20 dark:text-orchid">
+            {t("8-Pillar Telemetry")}
           </span>
         </div>
 
         <div className="mt-8">
           <h2 className="text-[42px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
-            Plan{' '}
-            <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+            {t("Plan")}{' '}
+            <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
               <Zap className="h-5 w-5 stroke-[2.4]" />
             </span>{' '}
-            Tonight.
-            <span className="block text-[var(--text-secondary)]">Execute Tomorrow.</span>
+            {t("Tonight.")}
+            <span className="block text-[var(--text-secondary)]">{t("Execute Tomorrow.")}</span>
           </h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-[var(--text-secondary)]">
-            Passive trackers log yesterday. Proactive31 locks your commitment across 8 Core Life Pillars every evening before you close your day.
+            {t("Passive trackers log yesterday. Proactive31 locks your commitment across 8 Core Life Pillars every evening before you close your day.")}
           </p>
         </div>
       </div>
@@ -71,10 +75,10 @@ export function AuthShowcasePanel() {
         <div className="col-span-7 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5">
           <div className="mb-3 flex items-center justify-between">
             <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-              8-Pillar Vector Matrix
+              {t("8-Pillar Vector Matrix")}
             </span>
             <span className="font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
-              360° Balance
+              {t("360° Balance")}
             </span>
           </div>
           <PillarCompassDiagram activePillarIndex={0} className="flex-1 min-h-[260px]" />
@@ -85,10 +89,10 @@ export function AuthShowcasePanel() {
           <div>
             <div className="flex items-center justify-between">
               <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
-                Sprint Cadence
+                {t("Sprint Cadence")}
               </span>
-              <span className="rounded-full bg-[#5CE68A] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
-                DAY 07/31
+              <span className="rounded-full bg-complete px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+                {t("DAY 07/31")}
               </span>
             </div>
 
@@ -97,7 +101,7 @@ export function AuthShowcasePanel() {
                 89%
               </p>
               <p className="mt-1.5 text-xs text-white/60">
-                Average closed-day adherence
+                {t("Average closed-day adherence")}
               </p>
             </div>
 
@@ -105,7 +109,7 @@ export function AuthShowcasePanel() {
               <SegmentedBattery
                 total={8}
                 filled={8}
-                label="Gatekeeper Lock"
+                label={t("Gatekeeper Lock")}
                 size="md"
                 variant="contrast"
               />
@@ -114,7 +118,7 @@ export function AuthShowcasePanel() {
 
           <div className="mt-6 border-t border-white/10 pt-4">
             <p className="mb-2 font-mono-tabular text-[10px] uppercase tracking-[0.14em] text-white/50">
-              31-Day Capsule Strip
+              {t("31-Day Capsule Strip")}
             </p>
             <DotMatrixRibbon days={previewDays} interactive={false} compact />
           </div>
@@ -125,42 +129,47 @@ export function AuthShowcasePanel() {
 }
 
 export function AuthThemeToggleBar() {
+  const { t } = useLanguage();
   const theme = useThemeStore((state) => state.theme);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
 
   return (
     <div className="mb-6 flex items-center justify-between gap-3 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-3.5 py-2">
       <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
           <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
         </span>
         <span className="text-xs font-bold tracking-tight">Proactive31</span>
       </div>
 
-      <button
-        id="theme-toggle-btn"
-        type="button"
-        onClick={toggleTheme}
-        aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
-      >
-        {theme === 'dark' ? (
-          <>
-            <Sun className="h-3.5 w-3.5 text-[#F5B841]" />
-            <span>Light</span>
-          </>
-        ) : (
-          <>
-            <Moon className="h-3.5 w-3.5" />
-            <span>Dark</span>
-          </>
-        )}
-      </button>
+      <div className="flex shrink-0 items-center gap-2">
+        <LanguageToggle />
+        <button
+          id="theme-toggle-btn"
+          type="button"
+          onClick={toggleTheme}
+          aria-label={t(theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')}
+          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun className="h-3.5 w-3.5 text-amber" />
+              <span>{t("Light")}</span>
+            </>
+          ) : (
+            <>
+              <Moon className="h-3.5 w-3.5" />
+              <span>{t("Dark")}</span>
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }
 
 export default function Login() {
+  const { language, t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -220,27 +229,27 @@ export default function Login() {
           <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
             <div className="mb-7">
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                Command Center Access
+                {t("Command Center Access")}
               </p>
               <h1 className="mt-2 text-4xl sm:text-[40px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
-                Welcome{' '}
-                <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                {t("Welcome")}{' '}
+                <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
                   <Lock className="h-4 w-4 stroke-[2.4]" />
                 </span>{' '}
-                back
+                {t("back")}
               </h1>
               <p className="mt-2.5 text-sm text-[var(--text-secondary)]">
-                Sign in to execute today&apos;s plan and lock tomorrow&apos;s 8 pillars.
+                {t("Sign in to execute today's plan and lock tomorrow's 8 pillars.")}
               </p>
             </div>
 
             {resetSuccess && (
               <div
                 role="status"
-                className="mb-5 flex items-center gap-2.5 rounded-[20px] border border-[#5CE68A]/50 bg-[#5CE68A]/20 px-4 py-3 text-xs font-semibold text-[#121212] dark:text-[#5CE68A]"
+                className="mb-5 flex items-center gap-2.5 rounded-[20px] border border-complete/50 bg-complete/20 px-4 py-3 text-xs font-semibold text-[#121212] dark:text-complete"
               >
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span>Password updated successfully. You can now sign in.</span>
+                <span>{t("Password updated successfully. You can now sign in.")}</span>
               </div>
             )}
 
@@ -250,7 +259,7 @@ export default function Login() {
                   htmlFor="login-email"
                   className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                 >
-                  Email address
+                  {t("Email address")}
                 </label>
                 <Input
                   id="login-email"
@@ -270,26 +279,26 @@ export default function Login() {
                     htmlFor="login-password"
                     className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                   >
-                    Password
+                    {t("Password")}
                   </label>
                   <Link
                     id="forgot-password-link"
                     to="/forgot-password"
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-4 hover:bg-[var(--bg-sand)] dark:text-[#F5B841] transition-colors"
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-4 hover:bg-[var(--bg-sand)] dark:text-amber transition-colors"
                   >
                     <KeyRound className="h-3 w-3" />
-                    Forgot password?
+                    {t("Forgot password?")}
                   </Link>
                 </div>
                 <Input
                   id="login-password"
-                  name="password"
-                  type="password"
+                  name={t("password")}
+                  type={t("password")}
                   autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder={t("Enter your password")}
                 />
               </div>
 
@@ -298,7 +307,7 @@ export default function Login() {
                   role="alert"
                   className="rounded-[18px] border border-[#DC2626]/30 bg-[#DC2626]/10 px-4 py-3 text-xs font-medium text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]"
                 >
-                  {error}
+                  {translateFeedback(language, error)}
                 </div>
               )}
 
@@ -307,16 +316,16 @@ export default function Login() {
                 type="submit"
                 disabled={loading}
                 size="lg"
-                className="w-full"
+                className="w-full dark:bg-[#E8E2D8] dark:hover:bg-[#F3EEE6]"
               >
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Signing in...
+                    {t("Signing in...")}
                   </>
                 ) : (
                   <>
-                    Enter Command Center
+                    {t("Enter Command Center")}
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -324,25 +333,25 @@ export default function Login() {
             </form>
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-5 text-sm">
-              <span className="text-[var(--text-secondary)]">New to Proactive31?</span>
+              <span className="text-[var(--text-secondary)]">{t("New to Proactive31?")}</span>
               <Link
                 to="/register"
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-sand)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-[#D96BFF] dark:hover:text-[#0D0914] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-sand)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-orchid dark:hover:text-[#0D0914] transition-colors"
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                Start a 31-day sprint
+                {t("Start a 31-day sprint")}
               </Link>
             </div>
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-5 font-mono-tabular text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-[#5CE68A]" />
-              Multi-tenant isolated
+              <CheckCircle2 className="h-3.5 w-3.5 text-complete" />
+              {t("Multi-tenant isolated")}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-[#5CE68A]" />
-              8 Core Pillars
+              <CheckCircle2 className="h-3.5 w-3.5 text-complete" />
+              {t("8 Core Pillars")}
             </span>
           </div>
         </div>

@@ -1,3 +1,5 @@
+import { useLanguage } from '../../i18n/useLanguage';
+import { translatePillarText } from '../../i18n/messages';
 import React, { useState } from 'react';
 import { cn } from '../../lib/utils';
 import { CORE_PILLARS } from '../../lib/pillars';
@@ -42,8 +44,8 @@ export const SegmentedBattery: React.FC<SegmentedBatteryProps> = ({
     if (variant === 'contrast') {
       if (isFilled) {
         return isComplete
-          ? 'bg-[#5CE68A] border-[#5CE68A]'
-          : 'bg-[#E6FA72] border-[#E6FA72] dark:bg-[#D96BFF] dark:border-[#D96BFF]';
+          ? 'bg-complete border-complete'
+          : 'bg-[#E6FA72] border-[#E6FA72] dark:bg-orchid dark:border-orchid';
       }
       return 'border border-white/20 bg-white/[0.04] [background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,0.14),rgba(255,255,255,0.14)_1.5px,transparent_1.5px,transparent_5px)]';
     }
@@ -57,8 +59,8 @@ export const SegmentedBattery: React.FC<SegmentedBatteryProps> = ({
 
     if (isFilled) {
       return isComplete
-        ? 'bg-[#5CE68A] border-[#5CE68A]'
-        : 'bg-[#121212] border-[#121212] dark:bg-[#D96BFF] dark:border-[#D96BFF]';
+        ? 'bg-complete border-complete'
+        : 'bg-[#121212] border-[#121212] dark:bg-orchid dark:border-orchid';
     }
     return 'border border-[var(--border-strong)] bg-transparent bg-hatch-fine';
   };
@@ -68,7 +70,7 @@ export const SegmentedBattery: React.FC<SegmentedBatteryProps> = ({
       return 'bg-[#121212] dark:bg-[#0D0914]';
     }
     if (variant === 'accent') {
-      return 'bg-[#E6FA72] dark:bg-[#F5B841]';
+      return 'bg-[#E6FA72] dark:bg-amber';
     }
     return isComplete ? 'bg-[#121212]' : 'bg-[#E6FA72] dark:bg-[#0D0914]';
   };
@@ -146,6 +148,7 @@ export const CapsuleBarChart: React.FC<CapsuleBarChartProps> = ({
   onBarClick,
   className,
 }) => {
+  const { t, formatPercent } = useLanguage();
   const [hoveredId, setHoveredId] = useState<string | number | null>(null);
   const hoveredItem = data.find((d) => d.id === hoveredId) ?? null;
 
@@ -175,18 +178,18 @@ export const CapsuleBarChart: React.FC<CapsuleBarChartProps> = ({
       return 'bg-[var(--text-muted)]/25 border border-[var(--border-hairline)] text-[var(--text-secondary)] dark:bg-white/15';
     }
     if (item.state === 'closed') {
-      return 'bg-[#5CE68A] text-[#121212]';
+      return 'bg-complete text-[#121212]';
     }
     if (item.state === 'today') {
-      return 'bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]';
+      return 'bg-[#E6FA72] text-[#121212] dark:bg-orchid dark:text-[#0D0914]';
     }
     if (item.state === 'tomorrow') {
-      return 'bg-[#F5B841] text-[#121212]';
+      return 'bg-amber text-[#121212]';
     }
     if (ratio >= 0.75) {
-      return 'bg-[#5CE68A] text-[#121212]';
+      return 'bg-complete text-[#121212]';
     }
-    return 'bg-[#121212] text-[#F4F4F2] dark:bg-[#D96BFF] dark:text-[#0D0914]';
+    return 'bg-[#121212] text-[#F4F4F2] dark:bg-orchid dark:text-[#0D0914]';
   };
 
   return (
@@ -194,12 +197,12 @@ export const CapsuleBarChart: React.FC<CapsuleBarChartProps> = ({
       {/* Flat telemetry readout bar */}
       <div className="flex min-h-6 items-center justify-between gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-3.5 py-1 dark:bg-[#120D1D]">
         <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-          {hoveredItem ? hoveredItem.label : 'Telemetry Readout'}
+          {hoveredItem ? hoveredItem.label : t("Telemetry Readout")}
         </span>
         <span className="font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
           {hoveredItem
-            ? `${hoveredSafeValue}${hoveredHasCustomMax ? `/${hoveredItem.max}` : '%'}${hoveredItem.meta ? ` · ${hoveredItem.meta}` : ''}`
-            : 'Hover bar to inspect'}
+            ? `${hoveredHasCustomMax ? `${hoveredSafeValue}/${hoveredItem.max}` : formatPercent(hoveredSafeValue)}${hoveredItem.meta ? ` · ${hoveredItem.meta}` : ''}`
+            : t("Hover bar to inspect")}
         </span>
       </div>
 
@@ -310,6 +313,7 @@ export const ConcentricRing: React.FC<ConcentricRingProps> = ({
   variant = 'default',
   className,
 }) => {
+  const { formatPercent } = useLanguage();
   const safeSize = Number.isFinite(size) && size > 0 ? size : 116;
   const safeStroke = Number.isFinite(strokeWidth) && strokeWidth > 0 ? strokeWidth : 10;
   const safePercentage = Number.isFinite(percentage) ? percentage : 0;
@@ -344,15 +348,15 @@ export const ConcentricRing: React.FC<ConcentricRingProps> = ({
     variant === 'accent'
       ? '#121212'
       : variant === 'contrast'
-      ? '#E6FA72'
+      ? 'var(--accent-primary)'
       : clamped >= 75
-      ? '#5CE68A'
+      ? 'var(--accent-complete)'
       : 'currentColor';
 
   return (
     <div className={cn('inline-flex flex-col items-center justify-center', className)}>
       <div
-        className="relative flex items-center justify-center text-[#121212] dark:text-[#D96BFF]"
+        className="relative flex items-center justify-center text-[#121212] dark:text-orchid"
         style={{ width: safeSize, height: safeSize }}
       >
         <svg
@@ -395,13 +399,13 @@ export const ConcentricRing: React.FC<ConcentricRingProps> = ({
                 cx={center}
                 cy={center}
                 r={innerRadius}
-                stroke="#F5B841"
+                stroke="var(--accent-plan)"
+                className={cn('transition-all duration-500', variant === 'accent' && 'dark:stroke-[#46364F]')}
                 strokeWidth={innerStroke}
                 strokeLinecap="round"
                 fill="none"
                 strokeDasharray={innerCircumference}
                 strokeDashoffset={innerOffset}
-                className="transition-all duration-500"
               />
             </>
           )}
@@ -419,7 +423,7 @@ export const ConcentricRing: React.FC<ConcentricRingProps> = ({
                 : 'text-[var(--text-primary)]'
             )}
           >
-            {clamped}%
+            {formatPercent(clamped)}
           </span>
           {sublabel && (
             <span
@@ -474,6 +478,7 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
   compact = false,
   className,
 }) => {
+  const { t } = useLanguage();
   return (
     <div
       className={cn(
@@ -492,13 +497,13 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
 
         if (d.isClosed) {
           style =
-            'border border-[#5CE68A] bg-[#5CE68A] text-[#121212] hover:opacity-90';
+            'border border-complete bg-complete text-[#121212] hover:opacity-90';
         } else if (d.isToday) {
           style =
-            'border border-[#121212] bg-[#121212] text-[#E6FA72] dark:border-[#D96BFF] dark:bg-[#D96BFF] dark:text-[#0D0914]';
+            'border border-[#121212] bg-[#121212] text-[#E6FA72] dark:border-orchid dark:bg-orchid dark:text-[#0D0914]';
         } else if (d.isTomorrow) {
           style =
-            'border border-dashed border-[#D98200] bg-[#F5B841]/20 text-[#9A5B00] dark:border-[#F5B841] dark:text-[#F5B841]';
+            'border border-dashed border-[#D98200] bg-amber/20 text-[#9A5B00] dark:border-amber dark:text-amber';
         } else if (d.isLogged) {
           style =
             'border border-[var(--border-strong)] bg-[var(--bg-sand)] text-[var(--text-primary)]';
@@ -515,7 +520,7 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
                   : d.isClosed
                   ? 'bg-[#121212]'
                   : d.isTomorrow
-                  ? 'bg-[#D98200] dark:bg-[#F5B841]'
+                  ? 'bg-[#D98200] dark:bg-amber'
                   : 'bg-transparent'
               )}
             />
@@ -527,7 +532,7 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
           compact ? 'h-9' : 'h-10',
           style,
           d.isSelected && !d.isToday
-            ? 'ring-2 ring-[#121212] dark:ring-[#F5B841]'
+            ? 'ring-2 ring-[#121212] dark:ring-amber'
             : ''
         );
 
@@ -536,7 +541,7 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
             <div
               key={`${safeDayNumber}-${idx}`}
               className={sharedClasses}
-              title={`Day ${safeDayNumber}${d.isToday ? ' (Today)' : ''}${d.isClosed ? ' · Closed' : ''}`}
+              title={t("Day {0}{1}{2}", safeDayNumber, d.isToday ? t(' (Today)') : '', d.isClosed ? t(' · Closed') : '')}
             >
               {content}
             </div>
@@ -549,7 +554,7 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
             type="button"
             onClick={() => onSelectDay(safeDayNumber)}
             className={cn(sharedClasses, 'cursor-pointer')}
-            title={`Day ${safeDayNumber}${d.isToday ? ' (Today)' : ''}${d.isClosed ? ' · Closed' : ''}`}
+            title={t("Day {0}{1}{2}", safeDayNumber, d.isToday ? t(' (Today)') : '', d.isClosed ? t(' · Closed') : '')}
           >
             {content}
           </button>
@@ -582,6 +587,7 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
   activePillarIndex = 0,
   className,
 }) => {
+  const { language } = useLanguage();
   return (
     <div
       className={cn(
@@ -651,7 +657,7 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
                 r={isHighlight ? 4.5 : 3}
                 className={
                   isHighlight
-                    ? 'fill-[#121212] dark:fill-[#D96BFF]'
+                    ? 'fill-[#121212] dark:fill-orchid'
                     : 'fill-current opacity-35'
                 }
               />
@@ -664,7 +670,7 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
           cx="180"
           cy="130"
           r="24"
-          className="fill-[#121212] dark:fill-[#D96BFF]"
+          className="fill-[#121212] dark:fill-orchid"
         />
         <text
           x="180"
@@ -693,12 +699,12 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
             className={cn(
               'glass-pill absolute inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
               isActive
-                ? 'border-[#121212] bg-[#E6FA72]/90 text-[#121212] dark:border-[#D96BFF] dark:bg-[#D96BFF]/90 dark:text-[#0D0914]'
+                ? 'border-[#121212] bg-[#E6FA72]/90 text-[#121212] dark:border-orchid dark:bg-orchid/90 dark:text-[#0D0914]'
                 : 'text-[var(--text-primary)]'
             )}
           >
             <Icon className="h-3 w-3 shrink-0" />
-            <span className="whitespace-nowrap">{pillar.shortName}</span>
+            <span className="whitespace-nowrap">{translatePillarText(language, pillar.shortName)}</span>
           </div>
         );
       })}

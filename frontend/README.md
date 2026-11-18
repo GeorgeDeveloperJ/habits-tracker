@@ -1,5 +1,15 @@
 # React + TypeScript + Vite
 
+## English and Spanish
+
+Use the **EN / ES** control on authentication pages or in the tracker header. The
+app starts in Spanish when the browser's preferred language is Spanish and in
+English otherwise. Your selection is saved in that browser. Goals are displayed
+as you wrote them.
+
+Run the language preference and translation tests with `node --test tests/i18n.test.mjs`
+from this directory.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

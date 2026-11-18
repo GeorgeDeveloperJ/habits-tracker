@@ -1,3 +1,5 @@
+import { translateFeedback } from '../../i18n/messages';
+import { useLanguage } from '../../i18n/useLanguage';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -16,6 +18,7 @@ import { Input } from '../ui/input';
 import { Button, ButtonLink } from '../ui/button';
 
 export default function ForgotPassword() {
+  const { language, t } = useLanguage();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,17 +72,17 @@ export default function ForgotPassword() {
           <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
             <div className="mb-7">
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                Credential Recovery
+                {t("Credential Recovery")}
               </p>
               <h1 className="mt-2 text-3xl sm:text-[38px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
-                Recover{' '}
-                <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3 py-1 text-[#121212] dark:bg-[#F5B841] dark:text-[#0D0914]">
+                {t("Recover")}{' '}
+                <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3 py-1 text-[#121212] dark:bg-amber dark:text-[#0D0914]">
                   <KeyRound className="h-4 w-4 stroke-[2.4]" />
                 </span>{' '}
-                access
+                {t("access")}
               </h1>
               <p className="mt-2.5 text-sm text-[var(--text-secondary)]">
-                Enter your registered email address to generate a secure, single-use reset token.
+                {t("Enter your registered email address to generate a secure, single-use reset token.")}
               </p>
             </div>
 
@@ -87,15 +90,14 @@ export default function ForgotPassword() {
               <div className="space-y-4">
                 <div
                   role="status"
-                  className="rounded-[22px] border border-[#5CE68A]/45 bg-[#5CE68A]/15 p-4 text-sm text-[var(--text-primary)]"
+                  className="rounded-[22px] border border-complete/45 bg-complete/15 p-4 text-sm text-[var(--text-primary)]"
                 >
                   <div className="flex items-start gap-2.5">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#121212] dark:text-[#5CE68A]" />
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#121212] dark:text-complete" />
                     <div>
-                      <p className="font-semibold">Reset instructions generated</p>
+                      <p className="font-semibold">{t("Reset instructions generated")}</p>
                       <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                        {result?.message ||
-                          'If an account with that email exists, password reset instructions have been generated.'}
+                        {t('If an account with that email exists, password reset instructions have been generated.')}
                       </p>
                     </div>
                   </div>
@@ -105,10 +107,10 @@ export default function ForgotPassword() {
                   <div className="rounded-[24px] border border-[var(--border-hairline)] bg-[var(--bg-sand)] p-5 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-                        Local / Demo Reset Token
+                        {t("Local / Demo Reset Token")}
                       </span>
-                      <span className="rounded-full bg-[#E6FA72] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
-                        15M TTL
+                      <span className="rounded-full bg-[#E6FA72] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
+                        {t("15M TTL")}
                       </span>
                     </div>
 
@@ -122,7 +124,7 @@ export default function ForgotPassword() {
                       size="lg"
                       className="w-full"
                     >
-                      Continue to Reset Password
+                      {t("Continue to Reset Password")}
                       <ArrowRight className="h-4 w-4" />
                     </ButtonLink>
                   </div>
@@ -134,7 +136,7 @@ export default function ForgotPassword() {
                     variant="outline"
                     className="w-full"
                   >
-                    Enter reset token manually
+                    {t("Enter reset token manually")}
                   </ButtonLink>
                   <button
                     type="button"
@@ -144,7 +146,7 @@ export default function ForgotPassword() {
                     }}
                     className="text-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] py-1.5 cursor-pointer"
                   >
-                    Try a different email address
+                    {t("Try a different email address")}
                   </button>
                 </div>
               </div>
@@ -155,7 +157,7 @@ export default function ForgotPassword() {
                     htmlFor="forgot-email"
                     className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                   >
-                    Account email address
+                    {t("Account email address")}
                   </label>
                   <div className="relative">
                     <Input
@@ -178,7 +180,7 @@ export default function ForgotPassword() {
                     role="alert"
                     className="rounded-[18px] border border-[#DC2626]/30 bg-[#DC2626]/10 px-4 py-3 text-xs font-medium text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]"
                   >
-                    {error}
+                    {translateFeedback(language, error)}
                   </div>
                 )}
 
@@ -192,11 +194,11 @@ export default function ForgotPassword() {
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Generating reset token...
+                      {t("Generating reset token...")}
                     </>
                   ) : (
                     <>
-                      Request Reset Link
+                      {t("Request Reset Link")}
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -210,21 +212,21 @@ export default function ForgotPassword() {
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Back to Sign In
+                {t("Back to Sign In")}
               </Link>
               <Link
                 to="/reset-password"
-                className="inline-flex items-center rounded-full bg-[var(--bg-sand)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-[#D96BFF] dark:hover:text-[#0D0914] transition-colors"
+                className="inline-flex items-center rounded-full bg-[var(--bg-sand)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-orchid dark:hover:text-[#0D0914] transition-colors"
               >
-                Have a token?
+                {t("Have a token?")}
               </Link>
             </div>
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-5 font-mono-tabular text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#5CE68A]" />
-              SHA-256 single-use tokens
+              <ShieldCheck className="h-3.5 w-3.5 text-complete" />
+              {t("SHA-256 single-use tokens")}
             </span>
           </div>
         </div>

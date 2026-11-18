@@ -28,7 +28,7 @@ const HabitCard: React.FC<HabitCardProps> = ({
       )}
     >
       <div className="mb-3.5 flex items-center justify-between gap-2">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--bg-sand)] text-[var(--text-primary)] transition-colors group-hover:bg-[#121212] group-hover:text-[#E6FA72] dark:group-hover:bg-[#D96BFF] dark:group-hover:text-[#0D0914]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--bg-sand)] text-[var(--text-primary)] transition-colors group-hover:bg-[#121212] group-hover:text-[#E6FA72] dark:group-hover:bg-orchid dark:group-hover:text-[#0D0914]">
           {icon}
         </div>
         {badge && (
