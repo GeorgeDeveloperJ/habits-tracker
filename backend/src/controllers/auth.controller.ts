@@ -4,6 +4,7 @@ import { prisma } from '../config/db';
 import { hash, compare } from 'bcrypt';
 import { sign } from 'jsonwebtoken';
 import logger from '../config/logger';
+import { passwordResetDeliveryErrorCode, type PasswordResetDelivery } from '../config/passwordResetDelivery';
 
 const hashResetToken = (token: string): string => {
     return crypto.createHash('sha256').update(token).digest('hex');
@@ -20,7 +21,7 @@ export const register = async ( req: Request, res: Response ) => {
             });
         }
 
-        const email = rawEmail;
+        const email = rawEmail.toLowerCase();
         const checkEmail = await prisma.user.findUnique({ where: { email } });
         if ( checkEmail ) {
             return res.status( 400 ).json({
@@ -31,7 +32,7 @@ export const register = async ( req: Request, res: Response ) => {
 
         const hashedPassword = await hash(password, 10);
         const user = await prisma.user.create({ data: { email, hashedPassword } });
-        const token = sign({ id: user.id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+        const token = sign({ id: user.id, version: user.sessionVersion }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
         return res.status( 201 ).json({
             success: true,
@@ -58,7 +59,7 @@ export const login = async ( req: Request, res: Response ) => {
             });
         }
 
-        const email = rawEmail;
+        const email = rawEmail.toLowerCase();
         const user = await prisma.user.findUnique({ where: { email } });
         if ( !user ) {
             return res.status( 401 ).json({
@@ -75,7 +76,7 @@ export const login = async ( req: Request, res: Response ) => {
             });
         }
 
-        const token = sign({ id: user.id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+        const token = sign({ id: user.id, version: user.sessionVersion }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
         return res.status( 200 ).json({
             success: true,
@@ -94,7 +95,12 @@ export const login = async ( req: Request, res: Response ) => {
 
 export const forgotPassword = async ( req: Request, res: Response ) => {
     try {
-        const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+        const deliver = req.app.locals.passwordResetDelivery as PasswordResetDelivery | undefined;
+        if (!deliver) {
+            return res.status(503).json({ success: false, message: 'Password recovery is temporarily unavailable.' });
+        }
+
+        const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
         if ( !email ) {
             return res.status( 400 ).json({
                 success: false,
@@ -103,9 +109,7 @@ export const forgotPassword = async ( req: Request, res: Response ) => {
         }
 
         const message = 'If an account with that email exists, password reset instructions have been generated.';
-        const user = await prisma.user.findFirst({
-            where: { email: { equals: email, mode: 'insensitive' } }
-        });
+        const user = await prisma.user.findUnique({ where: { email } });
 
         if ( !user ) {
             return res.status( 200 ).json({
@@ -135,25 +139,13 @@ export const forgotPassword = async ( req: Request, res: Response ) => {
             });
         });
 
-        const shouldExposeToken =
-            process.env.NODE_ENV !== 'production' || process.env.EXPOSE_RESET_TOKEN === 'true';
-
-        if ( shouldExposeToken ) {
-            logger.info(`Password reset link for ${user.email}: /reset-password?token=${rawToken}`);
-            return res.status( 200 ).json({
-                success: true,
-                message,
-                data: {
-                    resetToken: rawToken,
-                    expiresAt: expiresAt.toISOString()
-                }
-            });
-        }
-
-        return res.status( 200 ).json({
-            success: true,
-            message,
-            data: null
+        res.status(200).json({ success: true, message, data: null });
+        void deliver(user.email, rawToken, expiresAt).catch(async (error: unknown) => {
+            logger.error(`Password reset email delivery failed (${passwordResetDeliveryErrorCode(error)})`);
+            await prisma.passwordResetToken.updateMany({
+                where: { tokenHash, usedAt: null },
+                data: { usedAt: new Date() }
+            }).catch(() => logger.error('Failed to invalidate undelivered password reset token'));
         });
     } catch (error) {
         logger.error(`Error generating password reset: ${(error as Error).message}`);
@@ -203,7 +195,7 @@ export const resetPassword = async ( req: Request, res: Response ) => {
             const hashedPassword = await hash(password, 10);
             await tx.user.update({
                 where: { id: record.userId },
-                data: { hashedPassword }
+                data: { hashedPassword, sessionVersion: { increment: 1 } }
             });
 
             await tx.passwordResetToken.updateMany({

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verify } from 'jsonwebtoken';
+import { prisma } from '../config/db';
 import logger from '../config/logger';
 
 declare global {
@@ -21,7 +22,18 @@ export const authMiddleware = async ( req: Request, res: Response, next: NextFun
         }
 
         const token = authHeader.split(' ')[1];
-        const payload = verify( token, process.env.JWT_SECRET as string ) as { id: string };
+        const payload = verify(token, process.env.JWT_SECRET as string, { algorithms: ['HS256'] });
+        if (typeof payload !== 'object' || typeof payload.id !== 'string' ||
+            typeof payload.version !== 'number' || !Number.isInteger(payload.version)) {
+            return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+        }
+        const user = await prisma.user.findUnique({
+            where: { id: payload.id },
+            select: { sessionVersion: true }
+        });
+        if (!user || user.sessionVersion !== payload.version) {
+            return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+        }
         
         req.userId = payload.id;
         next();

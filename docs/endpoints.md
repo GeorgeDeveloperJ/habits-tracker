@@ -488,3 +488,7 @@ Toggles or updates the completion status (`isCompleted`) of a planned action.
           "message": "Error updating action"
         }
         ```
+
+### Cycle history pagination
+
+`GET /api/cycles/history` returns up to 20 cycles in descending start date and ID order, with summary counts and a nullable `nextCursor`. Send a non-null cursor as `?cursor=<id>` for the next page. Open a cycle through `GET /api/cycle-progress/<id>` for its logs and actions.

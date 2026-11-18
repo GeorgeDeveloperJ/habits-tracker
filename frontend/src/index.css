@@ -17,9 +17,12 @@
 
   --accent-primary: #E6FA72;
   --accent-primary-fg: #121212;
+  --accent-complete: #5CE68A;
+  --accent-complete-hover: #4AD879;
   --accent-secondary: #5CE68A;
   --accent-secondary-fg: #121212;
   --accent-amber: #D98200;
+  --accent-plan: #F5B841;
   --accent-danger: #DC2626;
 
   --border-hairline: rgba(18, 18, 18, 0.08);
@@ -40,7 +43,8 @@
 }
 
 .dark {
-  /* Deep Obsidian-Violet & Luminous Orchid / Warm Amber Palette */
+  color-scheme: dark;
+  /* Obsidian and plum with muted orchid, ochre, and sage */
   --bg-canvas: #0D0914;
   --bg-canvas-warm: #120D1C;
   --bg-card: #171224;
@@ -50,12 +54,15 @@
   --text-contrast: #F7F5FF;
   --text-contrast-muted: #9E92BC;
 
-  --accent-primary: #D96BFF;
+  --accent-primary: #B69ACC;
   --accent-primary-fg: #0D0914;
-  --accent-secondary: #F5B841;
+  --accent-secondary: #D4A968;
   --accent-secondary-fg: #0D0914;
-  --accent-emerald: #5CE68A;
-  --accent-amber: #F5B841;
+  --accent-complete: #AAB8AA;
+  --accent-complete-hover: #BFCCBE;
+  --accent-primary-hover: #CAB3DB;
+  --accent-amber: var(--accent-secondary);
+  --accent-plan: var(--accent-secondary);
   --accent-danger: #F87171;
 
   --border-hairline: rgba(255, 255, 255, 0.06);
@@ -63,7 +70,7 @@
 
   --text-primary: #F7F5FF;
   --text-secondary: #A99EC4;
-  --text-muted: #6E628C;
+  --text-muted: #A093B6;
 
   --hatch-color: rgba(255, 255, 255, 0.11);
   --glass-bg: rgba(23, 18, 36, 0.72);
@@ -73,6 +80,14 @@
   --bg-surface: var(--bg-card);
   --bg-elevated: var(--bg-sand);
   --border-subtle: var(--border-hairline);
+}
+
+@theme inline {
+  --color-orchid: var(--accent-primary);
+  --color-orchid-hover: var(--accent-primary-hover);
+  --color-amber: var(--accent-plan);
+  --color-complete: var(--accent-complete);
+  --color-complete-hover: var(--accent-complete-hover);
 }
 
 @theme {
@@ -117,11 +132,13 @@ body {
 }
 
 /* Frosted glass pill overlays for contextual 2D vector diagrams */
-.glass-pill {
-  background-color: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+@layer components {
+  .glass-pill {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
 }
 
 /* Ensure SVGs don't overflow their containers */

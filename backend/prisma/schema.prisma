@@ -35,6 +35,8 @@ model Cycle {
 
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+
+  @@index([userId, startDate, id])
 }
 
 // 3. The Daily Log
@@ -54,6 +56,8 @@ model DailyLog {
   
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
+
+  @@index([cycleId])
 }
 
 // 4. The Planned Action (The specific goal written by the user)
@@ -73,6 +77,8 @@ model PlannedAction {
   
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  @@index([logId])
 }
 
 // 5. The User
@@ -80,6 +86,7 @@ model User {
   id                  String               @id @default(uuid())
   email               String               @unique
   hashedPassword      String
+  sessionVersion      Int                  @default(0)
 
   // Relations
   cycles              Cycle[]
@@ -102,5 +109,12 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+  @@index([expiresAt])
+}
+model AuthRateBucket {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
   @@index([expiresAt])
 }

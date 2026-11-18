@@ -1,3 +1,5 @@
+import LanguageToggle from './LanguageToggle';
+import { useLanguage } from '../i18n/useLanguage';
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
@@ -20,6 +22,7 @@ import { Button } from './ui/button';
 import { SegmentedBattery } from './charts/HardwareViz';
 
 export default function AppLayout() {
+  const { t } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -42,8 +45,8 @@ export default function AppLayout() {
   };
 
   const navItems = [
-    { to: '/', label: 'Command Center', icon: LayoutDashboard, end: true },
-    { to: '/analytics', label: 'Analytics & Telemetry', icon: BarChart3, end: false },
+    { to: '/', label: t("Command Center"), icon: LayoutDashboard, end: true },
+    { to: '/analytics', label: t("Analytics & Telemetry"), icon: BarChart3, end: false },
   ];
 
   return (
@@ -63,16 +66,16 @@ export default function AppLayout() {
               }`}
             >
               <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FA72] text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
                   <Zap className="h-4 w-4 stroke-[2.5]" />
                 </div>
                 {!collapsed && (
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold tracking-tight">
-                      Proactive<span className="text-[#E6FA72] dark:text-[#D96BFF]">31</span>
+                      Proactive<span className="text-[#E6FA72] dark:text-orchid">31</span>
                     </p>
                     <p className="font-mono-tabular truncate text-[10px] uppercase tracking-[0.14em] text-white/50">
-                      8-Pillar Engine
+                      {t("8-Pillar Engine")}
                     </p>
                   </div>
                 )}
@@ -81,7 +84,7 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => setCollapsed((prev) => !prev)}
-                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/75 hover:bg-white/15 hover:text-white transition-colors cursor-pointer"
               >
                 {collapsed ? (
@@ -102,21 +105,21 @@ export default function AppLayout() {
                 <>
                   <div className="flex items-center justify-between">
                     <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
-                      Active Sprint
+                      {t("Active Sprint")}
                     </span>
-                    <span className="h-2 w-2 rounded-full bg-[#5CE68A]" />
+                    <span className="h-2 w-2 rounded-full bg-complete" />
                   </div>
                   <p className="mt-1 font-mono-tabular text-lg font-bold tracking-tight">
                     {activeCycle
-                      ? `Day ${String(currentDay).padStart(2, '0')} / 31`
-                      : 'Ready to Launch'}
+                      ? t("Day {0} / 31", String(currentDay).padStart(2, '0'))
+                      : t("Ready to Launch")}
                   </p>
                   {activeCycle && (
                     <div className="mt-3">
                       <SegmentedBattery
                         total={totalPillars}
                         filled={tomorrowPlannedCount}
-                        label="Next Lock"
+                        label={t("Next Lock")}
                         size="sm"
                         variant="contrast"
                       />
@@ -125,8 +128,8 @@ export default function AppLayout() {
                 </>
               ) : (
                 <div className="flex flex-col items-center gap-1 text-center">
-                  <span className="h-2 w-2 rounded-full bg-[#5CE68A]" />
-                  <span className="font-mono-tabular text-xs font-bold text-[#E6FA72] dark:text-[#D96BFF]">
+                  <span className="h-2 w-2 rounded-full bg-complete" />
+                  <span className="font-mono-tabular text-xs font-bold text-[#E6FA72] dark:text-orchid">
                     {activeCycle ? `D${String(currentDay).padStart(2, '0')}` : '--'}
                   </span>
                 </div>
@@ -134,7 +137,7 @@ export default function AppLayout() {
             </div>
 
             {/* Solid Stadium-Pill Navigation */}
-            <nav className="mt-5 space-y-1.5" aria-label="Main navigation">
+            <nav className="mt-5 space-y-1.5" aria-label={t("Main navigation")}>
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -145,7 +148,7 @@ export default function AppLayout() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded-full px-3.5 py-2.5 text-sm font-semibold transition-colors ${
                         isActive
-                          ? 'bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                          ? 'bg-[#E6FA72] text-[#121212] dark:bg-orchid dark:text-[#0D0914]'
                           : 'text-white/70 hover:bg-white/[0.08] hover:text-white'
                       } ${collapsed ? 'justify-center px-0 h-11 w-11 mx-auto' : ''}`
                     }
@@ -172,8 +175,8 @@ export default function AppLayout() {
               {!collapsed && (
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold">{userEmail}</p>
-                  <p className="font-mono-tabular text-[10px] uppercase tracking-[0.12em] text-[#5CE68A]">
-                    Session Live
+                  <p className="font-mono-tabular text-[10px] uppercase tracking-[0.12em] text-complete">
+                    {t("Session Live")}
                   </p>
                 </div>
               )}
@@ -182,13 +185,13 @@ export default function AppLayout() {
             <button
               type="button"
               onClick={handleLogout}
-              title="Log Out"
+              title={t("Log Out")}
               className={`flex items-center gap-2 rounded-full border border-white/15 bg-transparent text-xs font-semibold text-white/75 hover:border-[#F87171]/50 hover:bg-[#F87171]/15 hover:text-[#F87171] transition-colors cursor-pointer ${
                 collapsed ? 'h-10 w-10 mx-auto justify-center' : 'w-full px-4 py-2.5'
               }`}
             >
               <LogOut className="h-3.5 w-3.5 shrink-0" />
-              {!collapsed && <span>Log Out</span>}
+              {!collapsed && <span>{t("Log Out")}</span>}
             </button>
           </div>
         </div>
@@ -198,26 +201,26 @@ export default function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Recessed Top Pill Bar (Desktop + Mobile) */}
         <header className="px-3 pt-3 sm:px-6 sm:pt-4">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-3 py-2 sm:px-4">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-1 rounded-full sm:gap-3 border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-3 py-2 sm:px-4">
             {/* Left: Mobile Brand + Live Day Pill */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 md:hidden">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
                   <Zap className="h-3.5 w-3.5 stroke-[2.5]" />
                 </div>
-                <span className="text-sm font-bold tracking-tight">Proactive31</span>
+                <span className="hidden min-[400px]:inline text-sm font-bold tracking-tight">Proactive31</span>
               </div>
 
               <div className="hidden md:flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-card)] px-3 py-1 font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#5CE68A]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-complete" />
                   {activeCycle
-                    ? `SPRINT DAY ${String(currentDay).padStart(2, '0')} / 31`
-                    : 'SPRINT LAUNCHPAD'}
+                    ? t("SPRINT DAY {0} / 31", String(currentDay).padStart(2, '0'))
+                    : t("SPRINT LAUNCHPAD")}
                 </span>
                 {activeCycle && (
                   <span className="hidden lg:inline-flex items-center rounded-full bg-[var(--bg-card)] px-3 py-1 font-mono-tabular text-[11px] font-medium text-[var(--text-secondary)] border border-[var(--border-hairline)]">
-                    TOMORROW: {tomorrowPlannedCount}/{totalPillars} PILLARS
+                    {t("TOMORROW:")} {tomorrowPlannedCount}/{totalPillars} {t("PILLARS")}
                   </span>
                 )}
               </div>
@@ -230,23 +233,24 @@ export default function AppLayout() {
             </div>
 
             {/* Right: Theme Toggle Pill + Mobile Menu Toggle */}
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <LanguageToggle />
               <button
                 id="theme-toggle-btn"
                 type="button"
                 onClick={toggleTheme}
-                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                aria-label={t(theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')}
                 className="inline-flex items-center gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
               >
                 {theme === 'dark' ? (
                   <>
-                    <Sun className="h-3.5 w-3.5 text-[#F5B841]" />
-                    <span className="hidden sm:inline">Light Stone</span>
+                    <Sun className="h-3.5 w-3.5 text-amber" />
+                    <span className="hidden sm:inline">{t("Light Stone")}</span>
                   </>
                 ) : (
                   <>
                     <Moon className="h-3.5 w-3.5 text-[#121212]" />
-                    <span className="hidden sm:inline">Obsidian Dark</span>
+                    <span className="hidden sm:inline">{t("Obsidian Dark")}</span>
                   </>
                 )}
               </button>
@@ -259,7 +263,7 @@ export default function AppLayout() {
                 type="button"
                 onClick={() => setMobileMenuOpen((prev) => !prev)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] text-[var(--text-primary)] md:hidden cursor-pointer"
-                aria-label="Toggle mobile menu"
+                aria-label={t("Toggle mobile menu")}
               >
                 {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
               </button>
@@ -280,7 +284,7 @@ export default function AppLayout() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-semibold ${
                         isActive
-                          ? 'bg-[#E6FA72] text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                          ? 'bg-[#E6FA72] text-[#121212] dark:bg-orchid dark:text-[#0D0914]'
                           : 'text-white/75 hover:bg-white/10'
                       }`
                     }
@@ -294,7 +298,7 @@ export default function AppLayout() {
                 <span className="truncate text-xs text-white/70">{userEmail}</span>
                 <Button type="button" variant="danger" size="sm" onClick={handleLogout}>
                   <LogOut className="h-3.5 w-3.5" />
-                  Log Out
+                  {t("Log Out")}
                 </Button>
               </div>
             </div>

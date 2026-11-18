@@ -1,5 +1,7 @@
+import { translateFeedback } from '../../i18n/messages';
+import { useLanguage } from '../../i18n/useLanguage';
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,8 +15,9 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 
 export default function ResetPassword() {
-  const [searchParams] = useSearchParams();
-  const paramToken = searchParams.get('token') ?? '';
+  const { language, t } = useLanguage();
+  const { hash } = useLocation();
+  const paramToken = new URLSearchParams(hash.slice(1)).get('token') ?? '';
 
   const [manualToken, setManualToken] = useState<string | null>(null);
   const resetToken = manualToken ?? paramToken;
@@ -75,17 +78,17 @@ export default function ResetPassword() {
           <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
             <div className="mb-7">
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                Set New Password
+                {t("Set New Password")}
               </p>
               <h1 className="mt-2 text-3xl sm:text-[38px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
-                Reset{' '}
-                <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#5CE68A] px-3 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+                {t("Reset")}{' '}
+                <span className="inline-flex align-middle items-center justify-center rounded-full bg-complete px-3 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
                   <ShieldCheck className="h-4 w-4 stroke-[2.4]" />
                 </span>{' '}
-                password
+                {t("password")}
               </h1>
               <p className="mt-2.5 text-sm text-[var(--text-secondary)]">
-                Paste your single-use reset token and choose a new password (minimum 6 characters).
+                {t("Paste your single-use reset token and choose a new password (minimum 6 characters).")}
               </p>
             </div>
 
@@ -95,7 +98,7 @@ export default function ResetPassword() {
                   htmlFor="reset-token"
                   className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                 >
-                  Reset token
+                  {t("Reset token")}
                 </label>
                 <Input
                   id="reset-token"
@@ -104,7 +107,7 @@ export default function ResetPassword() {
                   required
                   value={resetToken}
                   onChange={(e) => setManualToken(e.target.value)}
-                  placeholder="Paste your 64-character reset token"
+                  placeholder={t("Paste your 64-character reset token")}
                   className="font-mono-tabular text-xs"
                 />
               </div>
@@ -114,17 +117,17 @@ export default function ResetPassword() {
                   htmlFor="reset-password"
                   className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                 >
-                  New password
+                  {t("New password")}
                 </label>
                 <Input
                   id="reset-password"
-                  name="password"
-                  type="password"
+                  name={t("password")}
+                  type={t("password")}
                   autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 6 characters"
+                  placeholder={t("Minimum 6 characters")}
                 />
               </div>
 
@@ -133,17 +136,17 @@ export default function ResetPassword() {
                   htmlFor="reset-confirm-password"
                   className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
                 >
-                  Confirm new password
+                  {t("Confirm new password")}
                 </label>
                 <Input
                   id="reset-confirm-password"
                   name="confirmPassword"
-                  type="password"
+                  type={t("password")}
                   autoComplete="new-password"
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat your new password"
+                  placeholder={t("Repeat your new password")}
                 />
               </div>
 
@@ -152,7 +155,7 @@ export default function ResetPassword() {
                   role="alert"
                   className="rounded-[18px] border border-[#DC2626]/30 bg-[#DC2626]/10 px-4 py-3 text-xs font-medium text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]"
                 >
-                  {error}
+                  {translateFeedback(language, error)}
                 </div>
               )}
 
@@ -166,11 +169,11 @@ export default function ResetPassword() {
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Updating password...
+                    {t("Updating password...")}
                   </>
                 ) : (
                   <>
-                    Update Password &amp; Sign In
+                    {t("Update Password & Sign In")}
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -183,13 +186,13 @@ export default function ResetPassword() {
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Back to Sign In
+                {t("Back to Sign In")}
               </Link>
               <Link
                 to="/forgot-password"
-                className="inline-flex items-center rounded-full bg-[var(--bg-sand)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-[#D96BFF] dark:hover:text-[#0D0914] transition-colors"
+                className="inline-flex items-center rounded-full bg-[var(--bg-sand)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-orchid dark:hover:text-[#0D0914] transition-colors"
               >
-                Request new token
+                {t("Request new token")}
               </Link>
             </div>
           </div>

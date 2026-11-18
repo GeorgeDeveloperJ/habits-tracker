@@ -8,16 +8,18 @@ import {
   resetPasswordSchema,
 } from '../middlewares/validate';
 
+import { authRateLimit } from '../middlewares/authRateLimit';
+
 const router = Router();
 
 // Route to register an user
-router.post( '/register', validate(registerSchema), register );
+router.post( '/register', authRateLimit('register', 60), validate(registerSchema), register );
 
 // Route to login an user
-router.post( '/login', validate(loginSchema), login );
+router.post( '/login', authRateLimit('login', 60), validate(loginSchema), login );
 
 // Public routes for forgot / reset password
-router.post( '/forgot-password', validate(forgotPasswordSchema), forgotPassword );
-router.post( '/reset-password', validate(resetPasswordSchema), resetPassword );
+router.post( '/forgot-password', authRateLimit('recover', 30), validate(forgotPasswordSchema), forgotPassword );
+router.post( '/reset-password', authRateLimit('reset', 30), validate(resetPasswordSchema), resetPassword );
 
 export default router;

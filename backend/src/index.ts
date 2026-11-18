@@ -7,8 +7,18 @@ import cycleProgressRoutes from './routes/cycleProgress.routes';
 import actionRoutes from './routes/actions.routes';
 import authRoutes from './routes/auth.routes';
 
+import { prisma } from './config/db';
+import { configurePasswordResetDelivery } from './config/passwordResetDelivery';
+
 const app = express();
+const trustedProxies = process.env.TRUSTED_PROXY_CIDRS?.split(',').map(value => value.trim()).filter(Boolean);
+if (trustedProxies?.length) app.set('trust proxy', trustedProxies);
+app.locals.passwordResetDelivery = configurePasswordResetDelivery(process.env);
 const PORT = Number(process.env.PORT) || 3000;
+
+if (process.env.NODE_ENV === 'production' && (process.env.JWT_SECRET?.length ?? 0) < 32) {
+  throw new Error('JWT_SECRET must contain at least 32 characters in production');
+}
 
 // Global middlewares
 app.use( corsMiddleware );
@@ -35,6 +45,23 @@ app.get('/api/health', ( req: Request, res: Response ) => {
     message: "Habit tracker API is running"
   })
 })
+
+app.get('/api/ready', async (_req, res) => {
+  try {
+    const [database] = await prisma.$queryRaw<{ canWriteRateBuckets: boolean }[]>`
+      SELECT has_table_privilege('"AuthRateBucket"', 'INSERT')
+        AND has_table_privilege('"AuthRateBucket"', 'UPDATE') AS "canWriteRateBuckets",
+        (SELECT "count" FROM "AuthRateBucket" LIMIT 0),
+        (SELECT "sessionVersion" FROM "User" LIMIT 0)
+    `;
+    if (!database?.canWriteRateBuckets) {
+      return res.status(503).json({ status: 'unavailable' });
+    }
+    res.status(200).json({ status: 'ready' });
+  } catch {
+    res.status(503).json({ status: 'unavailable' });
+  }
+});
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen( PORT, '0.0.0.0', () => {

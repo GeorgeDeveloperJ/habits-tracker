@@ -1,3 +1,5 @@
+import { translateFeedback, translatePillarText } from '../i18n/messages';
+import { useLanguage } from '../i18n/useLanguage';
 import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -15,6 +17,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 const StartSprintScreen: React.FC = () => {
+  const { language, locale, t } = useLanguage();
   const { categories, startSprint } = useHabits();
   const [goalInputs, setGoalInputs] = useState<Record<string, string>>({});
   const [isStarting, setIsStarting] = useState(false);
@@ -24,9 +27,9 @@ const StartSprintScreen: React.FC = () => {
     const start = new Date();
     const end = new Date(start.getTime() + 31 * 24 * 60 * 60 * 1000);
     const fmt = (d: Date) =>
-      d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
     return { startLabel: fmt(start), endLabel: fmt(end) };
-  }, []);
+  }, [locale]);
 
   const totalPillars = categories.length || 8;
 
@@ -44,7 +47,9 @@ const StartSprintScreen: React.FC = () => {
     const filled: Record<string, string> = {};
     categories.forEach((cat) => {
       const meta = getPillarMeta(cat.name);
-      filled[cat.id] = meta.suggestions[0] ?? `Complete ${cat.name} habit`;
+      filled[cat.id] = meta.suggestions[0]
+        ? translatePillarText(language, meta.suggestions[0])
+        : t('Complete {0} habit', translatePillarText(language, cat.name));
     });
     setGoalInputs(filled);
   };
@@ -87,27 +92,27 @@ const StartSprintScreen: React.FC = () => {
         <div className="lg:col-span-8 flex flex-col justify-between rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-6 sm:p-8">
           <div>
             <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-              31-Day Sprint Launchpad · 8 Core Pillars
+              {t("31-Day Sprint Launchpad · 8 Core Pillars")}
             </p>
             <h1 className="mt-2.5 text-4xl sm:text-[44px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
-              Commit to Your{' '}
-              <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-[#D96BFF] dark:text-[#0D0914]">
+              {t("Commit to Your")}{' '}
+              <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3.5 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
                 <Rocket className="h-5 w-5 stroke-[2.3]" />
               </span>{' '}
-              31-Day Sprint
+              {t("31-Day Sprint")}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">
-              Every sprint spans 31 consecutive days across your 8 Core Pillars. Set your Day 1 execution targets below—or launch immediately and plan inline.
+              {t("Every sprint spans 31 consecutive days across your 8 Core Pillars. Set your Day 1 execution targets below—or launch immediately and plan inline.")}
             </p>
           </div>
 
           <div className="mt-6 border-t border-[var(--border-hairline)] pt-5">
             <div className="mb-2.5 flex items-center justify-between">
               <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                31-Day Capsule Cadence Preview
+                {t("31-Day Capsule Cadence Preview")}
               </span>
               <span className="font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
-                DAY 01 ACTIVE
+                {t("DAY 01 ACTIVE")}
               </span>
             </div>
             <DotMatrixRibbon days={previewDays} interactive={false} />
@@ -119,11 +124,11 @@ const StartSprintScreen: React.FC = () => {
           <div>
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
-                <Calendar className="h-3.5 w-3.5 text-[#E6FA72] dark:text-[#D96BFF]" />
-                Sprint Window
+                <Calendar className="h-3.5 w-3.5 text-[#E6FA72] dark:text-orchid" />
+                {t("Sprint Window")}
               </span>
-              <span className="rounded-full bg-[#5CE68A] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
-                31 DAYS
+              <span className="rounded-full bg-complete px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+                {t("31 DAYS")}
               </span>
             </div>
 
@@ -132,15 +137,15 @@ const StartSprintScreen: React.FC = () => {
             </p>
 
             <div className="mt-6 flex items-baseline gap-2">
-              <span className="font-mono-tabular text-[48px] font-semibold leading-none tracking-[-0.04em] text-[#E6FA72] dark:text-[#D96BFF]">
+              <span className="font-mono-tabular text-[48px] font-semibold leading-none tracking-[-0.04em] text-[#E6FA72] dark:text-orchid">
                 {String(plannedCount).padStart(2, '0')}
               </span>
               <span className="font-mono-tabular text-lg font-medium text-white/50">
-                / {String(totalPillars).padStart(2, '0')} PILLARS
+                / {String(totalPillars).padStart(2, '0')} {t("PILLARS")}
               </span>
             </div>
             <p className="mt-1.5 text-xs text-white/65">
-              Day 1 targets queued before launch
+              {t("Day 1 targets queued before launch")}
             </p>
           </div>
 
@@ -148,7 +153,7 @@ const StartSprintScreen: React.FC = () => {
             <SegmentedBattery
               total={totalPillars}
               filled={plannedCount}
-              label="Day 1 Readiness"
+              label={t("Day 1 Readiness")}
               size="lg"
               variant="contrast"
             />
@@ -161,10 +166,10 @@ const StartSprintScreen: React.FC = () => {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-              Optional Kickoff Configuration
+              {t("Optional Kickoff Configuration")}
             </p>
             <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">
-              Day 1 Pillar Kickoff Wizard
+              {t("Day 1 Pillar Kickoff Wizard")}
             </h2>
           </div>
           <Button
@@ -175,7 +180,7 @@ const StartSprintScreen: React.FC = () => {
             className="w-fit"
           >
             <Wand2 className="h-3.5 w-3.5" />
-            Fill Recommended Day 1 Kit
+            {t("Fill Recommended Day 1 Kit")}
           </Button>
         </div>
 
@@ -191,7 +196,7 @@ const StartSprintScreen: React.FC = () => {
                 key={category.id}
                 className={`rounded-[24px] border p-5 transition-colors ${
                   isQueued
-                    ? 'border-[#121212]/25 bg-[#E6FA72]/20 dark:border-[#D96BFF]/40 dark:bg-[#1E1730]'
+                    ? 'border-[#121212]/25 bg-[#E6FA72]/20 dark:border-orchid/40 dark:bg-[#1E1730]'
                     : 'border-[var(--border-hairline)] bg-[var(--bg-sand)]/50 dark:bg-[#120D1D]'
                 }`}
               >
@@ -200,7 +205,7 @@ const StartSprintScreen: React.FC = () => {
                     <div
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
                         isQueued
-                          ? 'bg-[#121212] text-[#E6FA72] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                          ? 'bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]'
                           : 'bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border-hairline)]'
                       }`}
                     >
@@ -208,17 +213,17 @@ const StartSprintScreen: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                        {category.name}
+                        {translatePillarText(language, category.name)}
                       </h3>
                       <p className="text-xs text-[var(--text-secondary)]">
-                        {category.description}
+                        {translatePillarText(language, category.description)}
                       </p>
                     </div>
                   </div>
                   {isQueued && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#5CE68A] px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-complete px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
                       <Check className="h-3 w-3 stroke-[2.5]" />
-                      READY
+                      {t("READY")}
                     </span>
                   )}
                 </div>
@@ -229,24 +234,25 @@ const StartSprintScreen: React.FC = () => {
                   onChange={(e) =>
                     setGoalInputs((prev) => ({ ...prev, [category.id]: e.target.value }))
                   }
-                  placeholder={`Set Day 1 goal for ${category.name}...`}
+                  placeholder={t("Set Day 1 goal for {0}...", translatePillarText(language, category.name))}
                 />
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {meta.suggestions.map((suggestion) => {
-                    const selected = currentVal === suggestion;
+                    const label = translatePillarText(language, suggestion);
+                    const selected = currentVal === label;
                     return (
                       <button
                         key={suggestion}
                         type="button"
-                        onClick={() => handleChipClick(category.id, suggestion)}
+                        onClick={() => handleChipClick(category.id, label)}
                         className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
                           selected
-                            ? 'border-[#121212] bg-[#121212] text-[#E6FA72] dark:border-[#D96BFF] dark:bg-[#D96BFF] dark:text-[#0D0914]'
+                            ? 'border-[#121212] bg-[#121212] text-[#E6FA72] dark:border-orchid dark:bg-orchid dark:text-[#0D0914]'
                             : 'border-[var(--border-hairline)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
                         }`}
                       >
-                        + {suggestion}
+                        + {label}
                       </button>
                     );
                   })}
@@ -259,13 +265,13 @@ const StartSprintScreen: React.FC = () => {
         {error && (
           <div className="mt-6 flex items-center gap-3 rounded-[20px] border border-[#DC2626]/30 bg-[#DC2626]/10 p-4 text-sm text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>{error}</span>
+            <span>{translateFeedback(language, error)}</span>
           </div>
         )}
 
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[var(--border-hairline)] pt-6">
           <p className="text-xs text-[var(--text-secondary)]">
-            You can add, edit, or delete goals inline at any time during Day 1.
+            {t("You can add, edit, or delete goals inline at any time during Day 1.")}
           </p>
           <Button
             id="launch-sprint-btn"
@@ -277,14 +283,14 @@ const StartSprintScreen: React.FC = () => {
             {isStarting ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Initializing 31-Day Sprint...
+                {t("Initializing 31-Day Sprint...")}
               </>
             ) : (
               <>
                 <Rocket className="h-5 w-5" />
                 {plannedCount > 0
-                  ? `Launch Sprint with ${plannedCount} Day-1 Goal${plannedCount === 1 ? '' : 's'}`
-                  : 'Launch 31-Day Sprint'}
+                  ? t(plannedCount === 1 ? 'Launch Sprint with {0} Day-1 Goal' : 'Launch Sprint with {0} Day-1 Goals', plannedCount)
+                  : t("Launch 31-Day Sprint")}
               </>
             )}
           </Button>

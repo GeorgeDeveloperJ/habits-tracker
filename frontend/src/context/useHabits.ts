@@ -1,7 +1,6 @@
 import { createContext, useContext } from 'react';
 import type {
   Cycle,
-  CycleHistoryItem,
   CycleProgressResponse,
   DailyLog,
   HabitCategory,
@@ -11,7 +10,6 @@ import type {
 export interface HabitContextType {
   categories: HabitCategory[];
   activeCycle: Cycle | null;
-  cycleHistory: CycleHistoryItem[];
   progress: CycleProgressResponse | null;
   todayLog: DailyLog | null;
   tomorrowLog: DailyLog | null;
