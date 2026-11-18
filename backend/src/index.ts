@@ -36,25 +36,11 @@ app.get('/api/health', ( req: Request, res: Response ) => {
   })
 })
 
-app.listen( PORT, '0.0.0.0', () => {
-  console.log(`Server is running url: http://localhost:${PORT}`)
-})
-
-export interface HabitCategory {
-  id: string,
-  name: string
+if (process.env.NODE_ENV !== 'test') {
+  app.listen( PORT, '0.0.0.0', () => {
+    console.log(`Server is running url: http://localhost:${PORT}`)
+  });
 }
 
-export interface PlannedAction {
-  id: string,
-  habitCategoryId: string,
-  specificGoal: string,
-  isCompleted: boolean
-}
-
-export interface DailyLog {
-  id: string,
-  date: Date,
-  actions: PlannedAction[],
-  isPlannedForTomorrow: boolean
-}
+export { app };
+export default app;

@@ -1,19 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --font-sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Focused Obsidian & Electric Violet Design Tokens (DESIGN.md) */
+  --bg-canvas: #090A0F;
+  --bg-canvas-alt: #0B0D13;
+  --bg-surface: #11131C;
+  --bg-surface-alt: #12151E;
+  --bg-elevated: #171A26;
+  --bg-elevated-alt: #181C28;
+  --border-subtle: #1E2330;
+  --accent-violet: #7C3AED;
+  --accent-violet-light: #8B5CF6;
+  --accent-emerald: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-danger: #EF4444;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
 }
 
 @theme {
   --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 dark:bg-[#16171d] dark:text-gray-100;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
   font-family: var(--font-sans);
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Ensure SVGs don't overflow their containers if classes are missing */
@@ -21,4 +46,20 @@ svg {
   display: block;
   vertical-align: middle;
   max-width: 100%;
+}
+
+/* Custom subtle dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090A0F;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E2330;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #7C3AED;
 }

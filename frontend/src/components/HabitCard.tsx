@@ -1,53 +1,47 @@
 import React from 'react';
+import { cn } from '../lib/utils';
 
 interface HabitCardProps {
   name: string;
   description: string;
   icon?: React.ReactNode;
+  badge?: string;
   onClick?: () => void;
+  className?: string;
 }
 
-/**
- * HabitCard Component
- * A minimalist card for displaying habit categories.
- */
-const HabitCard: React.FC<HabitCardProps> = ({ name, description, icon, onClick }) => {
+const HabitCard: React.FC<HabitCardProps> = ({
+  name,
+  description,
+  icon,
+  badge,
+  onClick,
+  className,
+}) => {
   return (
-    <div 
+    <div
       onClick={onClick}
-      className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 transition-all hover:shadow-lg dark:border-gray-800 dark:bg-gray-900 dark:hover:border-purple-500/50 cursor-pointer"
+      className={cn(
+        'group relative overflow-hidden rounded-2xl border border-[#1E2330] bg-[#11131C] p-5 transition-all hover:border-[#8B5CF6]/50 hover:bg-[#171A26]/70',
+        onClick ? 'cursor-pointer' : '',
+        className
+      )}
     >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
-          {icon || (
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
-          )}
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#171A26] text-[#8B5CF6] border border-[#1E2330]">
+          {icon}
         </div>
+        {badge && (
+          <span className="rounded-full bg-[#171A26] px-2.5 py-0.5 font-mono-tabular text-[11px] font-semibold text-[#94A3B8] border border-[#1E2330]">
+            {badge}
+          </span>
+        )}
       </div>
-      
-      <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+
+      <h3 className="text-[15px] font-semibold text-[#F8FAFC] group-hover:text-[#8B5CF6] transition-colors">
         {name}
       </h3>
-      
-      <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-        {description}
-      </p>
-
-      {/* Subtle bottom accent line */}
-      <div className="absolute bottom-0 left-0 h-1 w-0 bg-purple-600 transition-all duration-300 group-hover:w-full" />
+      <p className="mt-1 text-xs leading-relaxed text-[#94A3B8]">{description}</p>
     </div>
   );
 };

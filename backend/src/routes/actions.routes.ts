@@ -1,13 +1,17 @@
 import { Router } from 'express';
-import { createAction, toggleActionStatus } from '../controllers/actions.controller';
+import { createAction, updateAction, deleteAction } from '../controllers/actions.controller';
 import { authMiddleware } from '../middlewares/authMiddleware';
+import { validate, createActionSchema, updateActionSchema } from '../middlewares/validate';
 
 const router = Router();
 
 // Route to create a new action
-router.post( '/', authMiddleware, createAction );
+router.post( '/', authMiddleware, validate(createActionSchema), createAction );
 
-// Route to toggle action status
-router.patch( '/:id', authMiddleware, toggleActionStatus );
+// Route to update/toggle an action
+router.patch( '/:id', authMiddleware, validate(updateActionSchema), updateAction );
+
+// Route to delete an action
+router.delete( '/:id', authMiddleware, deleteAction );
 
 export default router;

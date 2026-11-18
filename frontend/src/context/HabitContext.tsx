@@ -1,123 +1,272 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { 
-  HabitCategory, 
+import type {
   Cycle,
+  CycleHistoryItem,
   CycleProgressResponse,
-  DailyLog
+  HabitCategory,
+  InitialGoalInput,
 } from '../services/api';
-import { 
-  fetchHabitCategories, 
+import {
+  closeDailyLog,
+  createAction,
+  createDailyLog,
+  deleteAction,
   fetchActiveCycle,
+  fetchCycleHistory,
   fetchCycleProgress,
-  createDailyLog
+  fetchHabitCategories,
+  startNewCycle,
+  updateAction,
 } from '../services/api';
+import { useAuthStore } from '../store/authStore';
+import { HabitContext, type HabitContextType } from './useHabits';
 
-interface HabitContextType {
-  categories: HabitCategory[];
-  activeCycle: Cycle | null;
-  progress: CycleProgressResponse | null;
-  todayLog: DailyLog | null;
-  loading: boolean;
-  error: string | null;
-  refreshCycle: () => Promise<void>;
-  refreshProgress: () => Promise<void>;
-}
-
-const HabitContext = createContext<HabitContextType | undefined>(undefined);
-
-export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [categories, setCategories] = useState<HabitCategory[]>([]);
-  const [activeCycle, setActiveCycle] = useState<Cycle | null>(null);
-  const [progress, setProgress] = useState<CycleProgressResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const getTodayLogFromLogs = (logs: DailyLog[]) => {
-    if (!logs || logs.length === 0) return null;
-    const latestLog = logs[logs.length - 1];
-    
-    // Ensure the log is actually from today
-    const logDate = new Date(latestLog.date).toDateString();
-    const today = new Date().toDateString();
-    
-    if (logDate === today) {
-      return latestLog;
-    }
-    
-    return null;
-  };
-
-  const loadInitialData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      let [categoriesData, cycleData, progressData] = await Promise.all([
-        fetchHabitCategories(),
-        fetchActiveCycle(),
-        fetchCycleProgress()
-      ]);
-
-      // Auto-initialize today's log if there's an active cycle but no log for today
-      if (cycleData) {
-        const todayLog = progressData ? getTodayLogFromLogs(progressData.logs) : null;
-        if (!todayLog) {
-          try {
-            await createDailyLog(cycleData.id);
-            // Refetch progress since we just created a new log
-            progressData = await fetchCycleProgress();
-          } catch (initErr) {
-            console.warn('Daily log initialization skipped or failed:', initErr);
-          }
-        }
-      }
-
-      setCategories(categoriesData);
-      setActiveCycle(cycleData);
-      setProgress(progressData);
-    } catch (err) {
-      console.error('Failed to initialize app data:', err);
-      setError('Failed to load application data. Please make sure the backend is running.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refreshCycle = async () => {
-    try {
-      const cycleData = await fetchActiveCycle();
-      setActiveCycle(cycleData);
-    } catch (err) {
-      console.error('Failed to refresh cycle:', err);
-    }
-  };
-
-  const refreshProgress = async () => {
-    try {
-      const progressData = await fetchCycleProgress();
-      setProgress(progressData);
-    } catch (err) {
-      console.error('Failed to refresh progress:', err);
-    }
-  };
-
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const todayLog = progress ? getTodayLogFromLogs(progress.logs) : null;
-
+const isSameUtcDay = (dateIso: string, offsetDays = 0): boolean => {
+  const target = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+  const d = new Date(dateIso);
   return (
-    <HabitContext.Provider value={{ categories, activeCycle, progress, todayLog, loading, error, refreshCycle, refreshProgress }}>
-      {children}
-    </HabitContext.Provider>
+    d.getUTCFullYear() === target.getUTCFullYear() &&
+    d.getUTCMonth() === target.getUTCMonth() &&
+    d.getUTCDate() === target.getUTCDate()
   );
 };
 
-export const useHabits = (): HabitContextType => {
-  const context = useContext(HabitContext);
-  if (context === undefined) {
-    throw new Error('useHabits must be used within a HabitProvider');
+async function fetchAllHabitState() {
+  const [categoriesData, cycleData, historyData] = await Promise.all([
+    fetchHabitCategories(),
+    fetchActiveCycle(),
+    fetchCycleHistory(),
+  ]);
+
+  let progressData = cycleData ? await fetchCycleProgress('current') : null;
+
+  if (cycleData && !progressData?.todayLog) {
+    try {
+      await createDailyLog(cycleData.id, 'today');
+      progressData = await fetchCycleProgress('current');
+    } catch (initErr) {
+      console.warn('Today log initialization skipped:', initErr);
+    }
   }
-  return context;
+
+  return { categoriesData, cycleData, historyData, progressData };
+}
+
+export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const token = useAuthStore((state) => state.token);
+
+  const [categories, setCategories] = useState<HabitCategory[]>([]);
+  const [activeCycle, setActiveCycle] = useState<Cycle | null>(null);
+  const [cycleHistory, setCycleHistory] = useState<CycleHistoryItem[]>([]);
+  const [progress, setProgress] = useState<CycleProgressResponse | null>(null);
+  const [selectedDayNumber, setSelectedDayNumber] = useState<number | null>(null);
+  const [loadedToken, setLoadedToken] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const applyAllData = useCallback(async (activeToken: string) => {
+    const { categoriesData, cycleData, historyData, progressData } = await fetchAllHabitState();
+    setCategories(categoriesData);
+    setActiveCycle(cycleData);
+    setCycleHistory(historyData);
+    setProgress(progressData);
+    setSelectedDayNumber(null);
+    setError(null);
+    setLoadedToken(activeToken);
+  }, []);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncFromServer = async () => {
+      try {
+        const { categoriesData, cycleData, historyData, progressData } = await fetchAllHabitState();
+        if (cancelled) return;
+        setCategories(categoriesData);
+        setActiveCycle(cycleData);
+        setCycleHistory(historyData);
+        setProgress(progressData);
+        setSelectedDayNumber(null);
+        setError(null);
+        setLoadedToken(token);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Failed to load habit tracker data:', err);
+        setError('Failed to connect to the Habit Tracker API. Please verify the backend is running.');
+        setLoadedToken(token);
+      }
+    };
+
+    void syncFromServer();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const loadAllData = useCallback(async () => {
+    if (!token) return;
+    try {
+      setRefreshing(true);
+      setError(null);
+      await applyAllData(token);
+    } catch (err) {
+      console.error('Failed to refresh habit tracker data:', err);
+      setError('Failed to connect to the Habit Tracker API. Please verify the backend is running.');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [token, applyAllData]);
+
+  const refreshCycle = useCallback(async () => {
+    await loadAllData();
+  }, [loadAllData]);
+
+  const refreshProgress = useCallback(async () => {
+    if (!token) return;
+    const [progressData, historyData] = await Promise.all([
+      fetchCycleProgress('current'),
+      fetchCycleHistory(),
+    ]);
+    setProgress(progressData);
+    setCycleHistory(historyData);
+  }, [token]);
+
+  const startSprint = useCallback(
+    async (initialGoals?: InitialGoalInput[]) => {
+      const cycle = await startNewCycle(initialGoals);
+      if (token) {
+        await applyAllData(token);
+      }
+      return cycle;
+    },
+    [token, applyAllData]
+  );
+
+  const saveGoal = useCallback(
+    async (
+      categoryId: string,
+      description: string,
+      targetDate: 'today' | 'tomorrow' = 'tomorrow',
+      logId?: string
+    ) => {
+      await createAction({ categoryId, description, targetDate, logId });
+      await refreshProgress();
+    },
+    [refreshProgress]
+  );
+
+  const editGoal = useCallback(
+    async (
+      actionId: string,
+      payload: { description?: string; isCompleted?: boolean }
+    ) => {
+      await updateAction(actionId, payload);
+      await refreshProgress();
+    },
+    [refreshProgress]
+  );
+
+  const removeGoal = useCallback(
+    async (actionId: string) => {
+      await deleteAction(actionId);
+      await refreshProgress();
+    },
+    [refreshProgress]
+  );
+
+  const effectiveCategories = useMemo(() => (token ? categories : []), [token, categories]);
+  const effectiveActiveCycle = useMemo(() => (token ? activeCycle : null), [token, activeCycle]);
+  const effectiveCycleHistory = useMemo(() => (token ? cycleHistory : []), [token, cycleHistory]);
+  const effectiveProgress = useMemo(() => (token ? progress : null), [token, progress]);
+  const effectiveSelectedDay = token ? selectedDayNumber : null;
+  const effectiveError = token ? error : null;
+  const loading = Boolean(token) && (refreshing || loadedToken !== token);
+
+  const todayLog = useMemo(() => {
+    if (!effectiveProgress) return null;
+    if (effectiveProgress.todayLog) return effectiveProgress.todayLog;
+    if (!effectiveProgress.logs?.length) return null;
+    return effectiveProgress.logs.find((log) => isSameUtcDay(log.date, 0)) ?? null;
+  }, [effectiveProgress]);
+
+  const tomorrowLog = useMemo(() => {
+    if (!effectiveProgress) return null;
+    if (effectiveProgress.tomorrowLog) return effectiveProgress.tomorrowLog;
+    if (!effectiveProgress.logs?.length) return null;
+    return effectiveProgress.logs.find((log) => isSameUtcDay(log.date, 1)) ?? null;
+  }, [effectiveProgress]);
+
+  const selectedDayLog = useMemo(() => {
+    if (effectiveSelectedDay === null) {
+      return todayLog;
+    }
+    const matchingSeries = effectiveProgress?.dailySeries?.find(
+      (entry) => entry.dayNumber === effectiveSelectedDay
+    );
+    if (!matchingSeries) return null;
+    return effectiveProgress?.logs?.find((log) => log.id === matchingSeries.logId) ?? null;
+  }, [effectiveProgress, effectiveSelectedDay, todayLog]);
+
+  const closeToday = useCallback(
+    async (forceClose = false) => {
+      if (!todayLog) {
+        throw new Error('No active log found for today.');
+      }
+      await closeDailyLog(todayLog.id, true, forceClose);
+      await refreshProgress();
+    },
+    [todayLog, refreshProgress]
+  );
+
+  const value = useMemo<HabitContextType>(
+    () => ({
+      categories: effectiveCategories,
+      activeCycle: effectiveActiveCycle,
+      cycleHistory: effectiveCycleHistory,
+      progress: effectiveProgress,
+      todayLog,
+      tomorrowLog,
+      selectedDayNumber: effectiveSelectedDay,
+      selectedDayLog,
+      setSelectedDayNumber,
+      loading,
+      error: effectiveError,
+      refreshCycle,
+      refreshProgress,
+      refreshAll: loadAllData,
+      startSprint,
+      saveGoal,
+      editGoal,
+      removeGoal,
+      closeToday,
+    }),
+    [
+      effectiveCategories,
+      effectiveActiveCycle,
+      effectiveCycleHistory,
+      effectiveProgress,
+      todayLog,
+      tomorrowLog,
+      effectiveSelectedDay,
+      selectedDayLog,
+      loading,
+      effectiveError,
+      refreshCycle,
+      refreshProgress,
+      loadAllData,
+      startSprint,
+      saveGoal,
+      editGoal,
+      removeGoal,
+      closeToday,
+    ]
+  );
+
+  return <HabitContext.Provider value={value}>{children}</HabitContext.Provider>;
 };

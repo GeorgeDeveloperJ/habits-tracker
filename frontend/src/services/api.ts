@@ -1,13 +1,8 @@
 /**
- * Service layer for Habit Tracker API communication.
- * Adheres to the 31-Day Cycle data model.
+ * Typed service layer for Proactive 31-Day Habit Tracker API communication.
  */
-
 import apiClient from '../api/client';
 
-/**
- * Interface representing a fixed habit category.
- */
 export interface HabitCategory {
   id: string;
   name: string;
@@ -20,6 +15,20 @@ export interface Cycle {
   startDate: string;
   endDate: string;
   isActive: boolean;
+  userId?: string;
+}
+
+export interface CycleSummary {
+  daysLogged: number;
+  closedDays: number;
+  totalActions: number;
+  completedActions: number;
+  overallCompletionRate: number;
+}
+
+export interface CycleHistoryItem extends Cycle {
+  logs: DailyLog[];
+  summary: CycleSummary;
 }
 
 export interface PlannedAction {
@@ -27,6 +36,10 @@ export interface PlannedAction {
   categoryId: string;
   description: string;
   isCompleted: boolean;
+  logId: string;
+  createdAt?: string;
+  updatedAt?: string;
+  category?: HabitCategory;
 }
 
 export interface DailyLog {
@@ -37,108 +50,206 @@ export interface DailyLog {
   plans: PlannedAction[];
 }
 
-/**
- * Interface for cycle progress statistics.
- */
 export interface CycleStats {
   cycleId: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
   currentDayNumber: number;
+  totalDays: number;
   daysLogged: number;
+  closedDays: number;
+  totalActions: number;
   completedActions: number;
+  skippedActions: number;
   overallCompletionRate: number;
+  currentStreak: number;
+  bestStreak: number;
+  todayPlannedCount: number;
+  todayCompletedCount: number;
+  tomorrowPlannedCount: number;
+  canCloseToday: boolean;
 }
 
-// ==========================================
-// HabitService
-// ==========================================
+export interface PillarStat {
+  categoryId: string;
+  categoryName: string;
+  description: string | null;
+  plannedCount: number;
+  completedCount: number;
+  skippedCount: number;
+  completionRate: number;
+  currentStreak: number;
+}
 
-/**
- * Fetches the 8 fixed habit categories from the backend.
- * @returns A promise that resolves to an array of HabitCategory.
- */
-export const fetchHabitCategories = async (): Promise<HabitCategory[]> => {
-  const response = await apiClient.get('/habits');
-  return response.data?.data || [];
-};
+export interface DailySeriesPoint {
+  dayNumber: number;
+  date: string;
+  logId: string;
+  isClosed: boolean;
+  isToday: boolean;
+  isTomorrow: boolean;
+  planned: number;
+  completed: number;
+  skipped: number;
+  completionRate: number;
+}
 
-// ==========================================
-// CycleService
-// ==========================================
-
-export const fetchActiveCycle = async (): Promise<Cycle | null> => {
-  try {
-    const response = await apiClient.get('/cycles');
-    return response.data?.data || null;
-  } catch (error) {
-    return null;
-  }
-};
-
-export const startNewCycle = async (): Promise<Cycle> => {
-  const response = await apiClient.post('/cycles');
-  return response.data?.data;
-};
-
-// ==========================================
-// DailyLogService
-// ==========================================
-
-export const createDailyLog = async (cycleId: string): Promise<DailyLog> => {
-  const response = await apiClient.post('/days', { cycleId });
-  return response.data?.data;
-};
-
-export const toggleDailyLogStatus = async (dayId: string, isClosed: boolean): Promise<DailyLog> => {
-  const response = await apiClient.patch(`/days/${dayId}`, { isClosed });
-  return response.data?.data;
-};
-
-// ==========================================
-// ProgressService
-// ==========================================
+export interface RecentActivityItem {
+  id: string;
+  type: 'completed' | 'planned';
+  description: string;
+  categoryId: string;
+  categoryName: string;
+  isCompleted: boolean;
+  logId: string;
+  date: string;
+  timestamp: string;
+}
 
 export interface CycleProgressResponse {
   stats: CycleStats;
   logs: DailyLog[];
+  todayLog: DailyLog | null;
+  tomorrowLog: DailyLog | null;
+  pillarStats: PillarStat[];
+  dailySeries: DailySeriesPoint[];
+  recentActivity: RecentActivityItem[];
 }
 
-/**
- * Fetches the progress of the current cycle.
- */
-export const fetchCycleProgress = async (): Promise<CycleProgressResponse | null> => {
-  try {
-    const response = await apiClient.get('/cycle-progress/current');
-    return {
-      stats: response.data?.stats,
-      logs: response.data?.logs || [],
-    };
-  } catch (error) {
-    console.error('Error fetching cycle progress:', error);
-    return null;
-  }
+export interface InitialGoalInput {
+  categoryId: string;
+  description: string;
+}
+
+// ==========================================
+// Habit Categories
+// ==========================================
+
+export const fetchHabitCategories = async (): Promise<HabitCategory[]> => {
+  const response = await apiClient.get('/habits');
+  return response.data?.data ?? [];
 };
 
-/**
- * Saves a specific goal for a habit category.
- * Note: This currently targets /goals, which should map to PlannedActions on the backend.
- * @param categoryId - UUID of the habit category.
- * @param goal - The text description of the goal.
- */
-export const saveDailyGoal = async (categoryId: string, goal: string): Promise<void> => {
-  try {
-    await apiClient.post('/goals', { categoryId, goal, date: 'tomorrow' });
-  } catch (error) {
-    console.error('Error saving daily goal:', error);
-    throw error;
-  }
+// ==========================================
+// Cycles
+// ==========================================
+
+export const fetchActiveCycle = async (): Promise<Cycle | null> => {
+  const response = await apiClient.get('/cycles');
+  return response.data?.data ?? null;
 };
 
-export const createAction = async (categoryId: string, description: string): Promise<PlannedAction> => {
-  const response = await apiClient.post('/actions', { categoryId, description });
+export const fetchCycleHistory = async (): Promise<CycleHistoryItem[]> => {
+  const response = await apiClient.get('/cycles/history');
+  return response.data?.data ?? [];
+};
+
+export const startNewCycle = async (
+  initialGoals?: InitialGoalInput[]
+): Promise<Cycle> => {
+  const payload = initialGoals && initialGoals.length > 0 ? { initialGoals } : {};
+  const response = await apiClient.post('/cycles', payload);
   return response.data?.data;
 };
 
-export const toggleActionStatus = async (actionId: string, isCompleted: boolean): Promise<PlannedAction> => {
-  const response = await apiClient.patch(`/actions/${actionId}`, { isCompleted });
+// ==========================================
+// Daily Logs
+// ==========================================
+
+export const createDailyLog = async (
+  cycleId?: string,
+  targetDate: 'today' | 'tomorrow' = 'today'
+): Promise<DailyLog> => {
+  const response = await apiClient.post('/days', {
+    ...(cycleId ? { cycleId } : {}),
+    targetDate,
+  });
+  return response.data?.data;
+};
+
+export const fetchDays = async (cycleId?: string): Promise<DailyLog[]> => {
+  const response = await apiClient.get('/days', {
+    params: cycleId ? { cycleId } : undefined,
+  });
+  return response.data?.data ?? [];
+};
+
+export const closeDailyLog = async (
+  dayId: string,
+  isClosed = true,
+  forceClose = false
+): Promise<DailyLog> => {
+  const response = await apiClient.patch(`/days/${dayId}`, {
+    isClosed,
+    ...(forceClose ? { forceClose: true } : {}),
+  });
+  return response.data?.data;
+};
+
+// ==========================================
+// Cycle Progress & Analytics
+// ==========================================
+
+export const fetchCycleProgress = async (
+  cycleId = 'current'
+): Promise<CycleProgressResponse | null> => {
+  try {
+    const response = await apiClient.get(`/cycle-progress/${cycleId}`);
+    const payload = response.data?.data ?? response.data;
+    if (!payload?.stats) return null;
+    return {
+      stats: payload.stats,
+      logs: payload.logs ?? [],
+      todayLog: payload.todayLog ?? null,
+      tomorrowLog: payload.tomorrowLog ?? null,
+      pillarStats: payload.pillarStats ?? [],
+      dailySeries: payload.dailySeries ?? [],
+      recentActivity: payload.recentActivity ?? [],
+    };
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status;
+    if (status === 400 || status === 404) {
+      return null;
+    }
+    throw err;
+  }
+};
+
+// ==========================================
+// Planned Actions
+// ==========================================
+
+export interface CreateActionPayload {
+  categoryId: string;
+  description: string;
+  targetDate?: 'today' | 'tomorrow';
+  logId?: string;
+}
+
+export const createAction = async (
+  payload: CreateActionPayload
+): Promise<PlannedAction> => {
+  const response = await apiClient.post('/actions', payload);
+  return response.data?.data;
+};
+
+export const updateAction = async (
+  actionId: string,
+  payload: { description?: string; isCompleted?: boolean }
+): Promise<PlannedAction> => {
+  const response = await apiClient.patch(`/actions/${actionId}`, payload);
+  return response.data?.data;
+};
+
+export const toggleActionStatus = async (
+  actionId: string,
+  isCompleted: boolean
+): Promise<PlannedAction> => {
+  return updateAction(actionId, { isCompleted });
+};
+
+export const deleteAction = async (actionId: string): Promise<{ id: string }> => {
+  const response = await apiClient.delete(`/actions/${actionId}`);
   return response.data?.data;
 };

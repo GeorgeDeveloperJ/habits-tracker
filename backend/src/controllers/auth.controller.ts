@@ -6,14 +6,16 @@ import logger from '../config/logger';
 
 export const register = async ( req: Request, res: Response ) => {
     try {
-        const { email, password } = req.body;
-        if ( ! ( email && password )) {
+        const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+        const password = typeof req.body?.password === 'string' ? req.body.password : '';
+        if ( ! ( rawEmail && password ) ) {
             return res.status( 400 ).json({
                 success: false,
                 message: 'Email and password are required.'
             });
         }
 
+        const email = rawEmail;
         const checkEmail = await prisma.user.findUnique({ where: { email } });
         if ( checkEmail ) {
             return res.status( 400 ).json({
@@ -23,38 +25,41 @@ export const register = async ( req: Request, res: Response ) => {
         }
 
         const hashedPassword = await hash(password, 10);
-        const user = await prisma.user.create({ data: { email, hashedPassword }})
-        
-        res.status( 201 ).json({
+        const user = await prisma.user.create({ data: { email, hashedPassword } });
+        const token = sign({ id: user.id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
+
+        return res.status( 201 ).json({
             success: true,
-            message: 'User created succesfully',
-            data: { id: user.id, email: user.email }
-        })
+            message: 'User created successfully',
+            data: { token, id: user.id, email: user.email }
+        });
     } catch ( error ) {
         logger.error( `Error registering user: ${(error as Error).message}` );
-        res.status ( 500 ).json({
+        return res.status( 500 ).json({
             success: false,
             message: 'Error registering'
-        })
+        });
     }
-}
+};
 
 export const login = async ( req: Request, res: Response ) => {
     try {
-        const { email, password } = req.body;
-        if ( ! ( email && password )) {
+        const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+        const password = typeof req.body?.password === 'string' ? req.body.password : '';
+        if ( ! ( rawEmail && password ) ) {
             return res.status( 400 ).json({
                 success: false,
                 message: 'Email and password are required.'
             });
         }
 
+        const email = rawEmail;
         const user = await prisma.user.findUnique({ where: { email } });
         if ( !user ) {
             return res.status( 401 ).json({
                 success: false,
                 message: 'Invalid credentials'
-            })
+            });
         }
 
         const isMatch = await compare(password, user.hashedPassword);
@@ -62,22 +67,22 @@ export const login = async ( req: Request, res: Response ) => {
             return res.status( 401 ).json({
                 success: false,
                 message: 'Invalid credentials'
-            })
+            });
         }
 
         const token = sign({ id: user.id }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
 
         return res.status( 200 ).json({
             success: true,
-            message: 'Login succesful',
-            data: { token, email }
-        })
+            message: 'Login successful',
+            data: { token, id: user.id, email: user.email }
+        });
 
     } catch (error) {
-    logger.error(`Error logging in user: ${(error as Error).message}`);
-    res.status(500).json({
-        success: false,
-        message: 'Error logging in'
-    });
+        logger.error(`Error logging in user: ${(error as Error).message}`);
+        return res.status(500).json({
+            success: false,
+            message: 'Error logging in'
+        });
     }
-}
+};

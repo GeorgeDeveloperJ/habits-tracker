@@ -1,118 +1,204 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, Loader2, Sparkles, Zap } from 'lucide-react';
 import apiClient from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
-import { Loader2 } from 'lucide-react';
+import { AuthShowcasePanel } from './Login';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
+  const token = useAuthStore((state) => state.token);
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (token) {
+      navigate('/', { replace: true });
+    }
+  }, [token, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
+    if (!email.trim() || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+    if (confirmPassword && password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      // Adjust payload based on your backend register implementation if it requires 'name' or other fields
-      const response = await apiClient.post('/auth/register', { email, password });
-      if (response.data && response.data.success) {
-        // Some backends return the token on register. If so, login immediately:
-        if (response.data.data && response.data.data.token) {
-          const { token, id, email: userEmail } = response.data.data;
-          login(token, { id, email: userEmail });
-          navigate('/');
-        } else {
-          // If no token, redirect to login page
-          navigate('/login');
-        }
-      }
-    } catch (err: any) {
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
+      const response = await apiClient.post('/auth/register', {
+        email: email.trim(),
+        password,
+      });
+      if (response.data?.success && response.data?.data?.token) {
+        const { token: jwt, id, email: userEmail } = response.data.data;
+        login(jwt, { id, email: userEmail });
+        navigate('/', { replace: true });
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        navigate('/login');
       }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Unable to create account. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-            Create a new account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
-            <Link to="/login" className="font-medium text-purple-600 hover:text-purple-500 dark:text-purple-400 dark:hover:text-purple-300">
-              Sign in
-            </Link>
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="-space-y-px rounded-md shadow-sm">
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="relative block w-full appearance-none rounded-none rounded-t-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1f2128] px-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 focus:z-10 focus:border-purple-500 focus:outline-none focus:ring-purple-500 sm:text-sm"
-                placeholder="Email address"
-              />
+    <div className="flex min-h-screen bg-[#090A0F] text-[#F8FAFC]">
+      <AuthShowcasePanel />
+
+      <div className="flex w-full lg:w-1/2 flex-col items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md">
+          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7C3AED] text-white">
+              <Zap className="h-4 w-4" />
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="relative block w-full appearance-none rounded-none rounded-b-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1f2128] px-3 py-2 text-gray-900 dark:text-white placeholder-gray-500 focus:z-10 focus:border-purple-500 focus:outline-none focus:ring-purple-500 sm:text-sm"
-                placeholder="Password"
-              />
-            </div>
+            <span className="text-lg font-bold tracking-tight">
+              Proactive<span className="text-[#8B5CF6]">31</span>
+            </span>
           </div>
 
-          {error && (
-            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3">
-              <p className="text-sm font-medium text-red-800 dark:text-red-400">{error}</p>
+          <div className="rounded-2xl border border-[#1E2330] bg-[#12151E]/90 p-8 shadow-2xl backdrop-blur-xl">
+            <div className="mb-6">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#1E2330] bg-[#171A26] px-3 py-1 text-xs font-medium text-[#10B981]">
+                <Sparkles className="h-3 w-3" />
+                31-Day Sprint Onboarding
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#F8FAFC]">
+                Create your workspace
+              </h1>
+              <p className="mt-1.5 text-sm text-[#94A3B8]">
+                Build unbreakable consistency across 8 Core Pillars in 31 days.
+              </p>
             </div>
-          )}
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative flex w-full justify-center rounded-md border border-transparent bg-purple-600 py-2 px-4 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-70 transition-colors"
-            >
-              {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                'Register'
+            <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+              <div>
+                <label
+                  htmlFor="register-email"
+                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#94A3B8]"
+                >
+                  Email address
+                </label>
+                <Input
+                  id="register-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="register-password"
+                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#94A3B8]"
+                >
+                  Password
+                </label>
+                <Input
+                  id="register-password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 6 characters"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="register-confirm-password"
+                  className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#94A3B8]"
+                >
+                  Confirm password
+                </label>
+                <Input
+                  id="register-confirm-password"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat your password"
+                />
+              </div>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 py-3 text-sm text-[#EF4444]"
+                >
+                  {error}
+                </div>
               )}
-            </button>
+
+              <Button
+                id="register-submit-btn"
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 text-sm font-semibold"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creating workspace...
+                  </>
+                ) : (
+                  <>
+                    Create Account & Launch
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 border-t border-[#1E2330] pt-5 flex items-center justify-between text-sm">
+              <span className="text-[#94A3B8]">Already have an account?</span>
+              <Link
+                to="/login"
+                className="font-semibold text-[#8B5CF6] hover:text-[#A78BFA] transition-colors"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
-        </form>
+
+          <div className="mt-6 flex items-center justify-center gap-5 text-xs text-[#64748B]">
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" />
+              Instant JWT auto-login
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#10B981]" />
+              Zero setup friction
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
