@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import type { RequestHandler } from 'express';
 import { prisma } from '../config/db';
 import logger from '../config/logger';
@@ -43,8 +44,13 @@ export const authRateLimit = (
 
         res.set('Retry-After', String(retryAfter));
         return res.status(429).json({ success: false, message: 'Too many attempts. Try again later.' });
-    } catch {
-        logger.error('Authentication rate limit check failed');
+    } catch (error) {
+        const prismaCode = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : 'unknown';
+        const sqlState = error instanceof Prisma.PrismaClientKnownRequestError ? error.meta?.code : undefined;
+        const code = typeof sqlState === 'string' && /^[0-9A-Z]{5}$/.test(sqlState)
+            ? `${prismaCode}/${sqlState}`
+            : prismaCode;
+        logger.error(`Authentication rate limit check failed (${code})`);
         return res.status(503).json({ success: false, message: 'Authentication is temporarily unavailable.' });
     }
 };

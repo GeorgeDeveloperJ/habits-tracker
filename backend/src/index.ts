@@ -48,7 +48,15 @@ app.get('/api/health', ( req: Request, res: Response ) => {
 
 app.get('/api/ready', async (_req, res) => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    const [database] = await prisma.$queryRaw<{ canWriteRateBuckets: boolean }[]>`
+      SELECT has_table_privilege('"AuthRateBucket"', 'INSERT')
+        AND has_table_privilege('"AuthRateBucket"', 'UPDATE') AS "canWriteRateBuckets",
+        (SELECT "count" FROM "AuthRateBucket" LIMIT 0),
+        (SELECT "sessionVersion" FROM "User" LIMIT 0)
+    `;
+    if (!database?.canWriteRateBuckets) {
+      return res.status(503).json({ status: 'unavailable' });
+    }
     res.status(200).json({ status: 'ready' });
   } catch {
     res.status(503).json({ status: 'unavailable' });

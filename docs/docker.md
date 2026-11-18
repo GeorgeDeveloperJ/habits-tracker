@@ -237,7 +237,7 @@ docker build -f backend/Dockerfile -t habits-api:release backend
 docker build -f backend/Dockerfile --target release-tools -t habits-release-tools:release backend
 ```
 
-Run the release tools image once with the target `DATABASE_URL` supplied through the deployment secret store. Its default command applies migrations. Run `./node_modules/.bin/prisma db seed` in the same image where categories have not been initialized. Start the API only after the release jobs succeed. The runtime uses production dependencies and an unprivileged user. `/api/health` checks HTTP liveness and `/api/ready` checks database connectivity.
+Run the release tools image once with the target `DATABASE_URL` supplied through the deployment secret store. Its default command applies migrations. Run `./node_modules/.bin/prisma db seed` in the same image where categories have not been initialized. Start the API only after the release jobs succeed. The runtime uses production dependencies and an unprivileged user. `/api/health` checks HTTP liveness and `/api/ready` checks database connectivity, the migrated authentication schema, and the rate limiter's write permissions.
 
 > [!NOTE]
 > `DATABASE_URL="postgresql://dummy"` is passed during the build stage only to satisfy Prisma's `generate` command, which requires a valid-format URL at build time even though it never actually connects.
