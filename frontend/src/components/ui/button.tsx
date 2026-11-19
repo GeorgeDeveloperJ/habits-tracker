@@ -23,9 +23,9 @@ const buttonVariantClasses: Record<
 };
 
 const buttonSizeClasses: Record<'default' | 'sm' | 'lg' | 'icon', string> = {
-  default: 'h-10 px-5 py-2 text-sm',
-  sm: 'h-8 px-3.5 text-xs',
-  lg: 'h-12 px-7 text-sm',
+  default: 'min-h-10 px-4 sm:px-5 py-2 text-sm',
+  sm: 'min-h-8 px-3.5 py-1.5 text-xs',
+  lg: 'min-h-12 px-5 sm:px-7 py-2.5 text-sm',
   icon: 'h-9 w-9 p-0',
 };
 
@@ -50,7 +50,7 @@ function buttonVariants({
   className?: string;
 } = {}) {
   return cn(
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#121212] dark:focus-visible:ring-orchid disabled:pointer-events-none disabled:opacity-45 cursor-pointer',
+    'inline-flex items-center justify-center gap-2 rounded-full text-center font-semibold leading-snug transition-colors [&_svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#121212] dark:focus-visible:ring-orchid disabled:pointer-events-none disabled:opacity-45 cursor-pointer',
     buttonVariantClasses[variant],
     buttonSizeClasses[size],
     className

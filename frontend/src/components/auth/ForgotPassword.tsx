@@ -67,7 +67,7 @@ export default function ForgotPassword() {
         <div className="w-full max-w-md">
           <AuthThemeToggleBar />
 
-          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
+          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5 sm:p-8">
             <div className="mb-7">
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                 {t("Credential Recovery")}
@@ -193,7 +193,7 @@ export default function ForgotPassword() {
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-5 font-mono-tabular text-[11px] text-[var(--text-muted)]">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono-tabular text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-complete" />
               {t("SHA-256 single-use tokens")}

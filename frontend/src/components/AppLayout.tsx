@@ -22,7 +22,7 @@ import { Button } from './ui/button';
 import { SegmentedBattery } from './charts/HardwareViz';
 
 export default function AppLayout() {
-  const { t } = useLanguage();
+  const { t, formatPercent } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -35,6 +35,8 @@ export default function AppLayout() {
 
   const currentDay = progress?.stats?.currentDayNumber ?? (activeCycle ? 1 : 0);
   const tomorrowPlannedCount = progress?.stats?.tomorrowPlannedCount ?? 0;
+  const currentStreak = progress?.stats?.currentStreak ?? 0;
+  const overallRate = progress?.stats?.overallCompletionRate ?? 0;
   const totalPillars = categories.length || 8;
   const userEmail = user?.email ?? 'member@proactive31.app';
   const initials = userEmail.slice(0, 2).toUpperCase();
@@ -52,7 +54,7 @@ export default function AppLayout() {
   return (
     <div className="flex min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)]">
       {/* Desktop High-Contrast Floating Vertical Pill Dock */}
-      <aside className="hidden md:flex shrink-0 p-3 pr-0">
+      <aside className="hidden lg:flex shrink-0 p-3 pr-0">
         <div
           className={`sticky top-3 flex h-[calc(100vh-24px)] flex-col justify-between rounded-[28px] bg-[#121212] text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF] transition-all duration-200 ${
             collapsed ? 'w-[80px] p-3' : 'w-[248px] p-4'
@@ -174,9 +176,11 @@ export default function AppLayout() {
               </Avatar>
               {!collapsed && (
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold">{userEmail}</p>
-                  <p className="font-mono-tabular text-[10px] uppercase tracking-[0.12em] text-complete">
-                    {t("Session Live")}
+                  <p className="truncate text-xs font-semibold" title={userEmail}>{userEmail}</p>
+                  <p className="font-mono-tabular truncate text-[10px] uppercase tracking-[0.1em] text-complete">
+                    {activeCycle
+                      ? t("{0}d streak · {1}", currentStreak, formatPercent(overallRate))
+                      : t("Personal Workspace")}
                   </p>
                 </div>
               )}
@@ -203,30 +207,30 @@ export default function AppLayout() {
         <header className="px-3 pt-3 sm:px-6 sm:pt-4">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-1 rounded-full sm:gap-3 border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-3 py-2 sm:px-4">
             {/* Left: Mobile Brand + Live Day Pill */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 md:hidden">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex items-center gap-2 lg:hidden">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
                   <Proactive31Mark className="h-5 w-5" />
                 </div>
                 <span className="hidden min-[400px]:inline text-sm font-bold tracking-tight">Proactive31</span>
               </div>
 
-              <div className="hidden md:flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-card)] px-3 py-1 font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
+              <div className="hidden lg:flex items-center gap-2">
+                <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-full bg-[var(--bg-card)] px-3 py-1 font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
                   <span className="h-1.5 w-1.5 rounded-full bg-complete" />
                   {activeCycle
                     ? t("SPRINT DAY {0} / 31", String(currentDay).padStart(2, '0'))
                     : t("SPRINT LAUNCHPAD")}
                 </span>
                 {activeCycle && (
-                  <span className="hidden lg:inline-flex items-center rounded-full bg-[var(--bg-card)] px-3 py-1 font-mono-tabular text-[11px] font-medium text-[var(--text-secondary)] border border-[var(--border-hairline)]">
+                  <span className="hidden xl:inline-flex shrink-0 whitespace-nowrap items-center rounded-full bg-[var(--bg-card)] px-3 py-1 font-mono-tabular text-[11px] font-medium text-[var(--text-secondary)] border border-[var(--border-hairline)]">
                     {t("TOMORROW:")} {tomorrowPlannedCount}/{totalPillars} {t("PILLARS")}
                   </span>
                 )}
               </div>
 
               {activeCycle && (
-                <span className="inline-flex md:hidden items-center rounded-full bg-[var(--bg-card)] px-2.5 py-1 font-mono-tabular text-[11px] font-semibold border border-[var(--border-hairline)]">
+                <span className="inline-flex lg:hidden shrink-0 whitespace-nowrap items-center rounded-full bg-[var(--bg-card)] px-2.5 py-1 font-mono-tabular text-[11px] font-semibold border border-[var(--border-hairline)]">
                   D{String(currentDay).padStart(2, '0')}/31
                 </span>
               )}
@@ -240,29 +244,29 @@ export default function AppLayout() {
                 type="button"
                 onClick={toggleTheme}
                 aria-label={t(theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')}
-                className="inline-flex items-center gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-2.5 py-1.5 lg:px-3.5 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
               >
                 {theme === 'dark' ? (
                   <>
-                    <Sun className="h-3.5 w-3.5 text-amber" />
-                    <span className="hidden sm:inline">{t("Light Stone")}</span>
+                    <Sun className="h-3.5 w-3.5 shrink-0 text-amber" />
+                    <span className="hidden lg:inline">{t("Light Stone")}</span>
                   </>
                 ) : (
                   <>
-                    <Moon className="h-3.5 w-3.5 text-[#121212]" />
-                    <span className="hidden sm:inline">{t("Obsidian Dark")}</span>
+                    <Moon className="h-3.5 w-3.5 shrink-0 text-[#121212]" />
+                    <span className="hidden lg:inline">{t("Obsidian Dark")}</span>
                   </>
                 )}
               </button>
 
-              <span className="hidden md:inline-flex items-center rounded-full bg-[var(--bg-card)] border border-[var(--border-hairline)] px-3 py-1.5 font-mono-tabular text-[11px] text-[var(--text-secondary)] max-w-[190px] truncate">
+              <span className="hidden xl:inline-flex items-center rounded-full bg-[var(--bg-card)] border border-[var(--border-hairline)] px-3 py-1.5 font-mono-tabular text-[11px] text-[var(--text-secondary)] max-w-[190px] truncate">
                 {userEmail}
               </span>
 
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen((prev) => !prev)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] text-[var(--text-primary)] md:hidden cursor-pointer"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] text-[var(--text-primary)] lg:hidden cursor-pointer"
                 aria-label={t("Toggle mobile menu")}
               >
                 {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -272,7 +276,7 @@ export default function AppLayout() {
 
           {/* Mobile Recessed Dropdown */}
           {mobileMenuOpen && (
-            <div className="mt-2 rounded-[24px] border border-[var(--border-hairline)] bg-[#121212] p-4 text-[#F4F4F2] dark:bg-[#171224] dark:text-[#F7F5FF] space-y-2 md:hidden">
+            <div className="mt-2 rounded-[24px] border border-[var(--border-hairline)] bg-[#121212] p-4 text-[#F4F4F2] dark:bg-[#171224] dark:text-[#F7F5FF] space-y-2 lg:hidden">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
