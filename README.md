@@ -1,4 +1,4 @@
-# ⚡ Proactive 31-Day Habit Tracker
+# ⚡ Kraken Habits
 
 ## 💻 Tech Stack
 

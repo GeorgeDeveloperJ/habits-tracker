@@ -13,7 +13,7 @@ import {
   Sun,
   X,
 } from 'lucide-react';
-import { Proactive31Mark } from './icons/BrandMark';
+import { KrakenHabitsMark } from './icons/BrandMark';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { useHabits } from '../context/useHabits';
@@ -38,7 +38,7 @@ export default function AppLayout() {
   const currentStreak = progress?.stats?.currentStreak ?? 0;
   const overallRate = progress?.stats?.overallCompletionRate ?? 0;
   const totalPillars = categories.length || 8;
-  const userEmail = user?.email ?? 'member@proactive31.app';
+  const userEmail = user?.email ?? 'Kraken Habits';
   const initials = userEmail.slice(0, 2).toUpperCase();
 
   const handleLogout = () => {
@@ -68,13 +68,11 @@ export default function AppLayout() {
               }`}
             >
               <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E6FA72] text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
-                  <Proactive31Mark className="h-6 w-6" />
-                </div>
+                <KrakenHabitsMark className="h-10 w-10 shrink-0" />
                 {!collapsed && (
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold tracking-tight">
-                      Proactive<span className="text-[#E6FA72] dark:text-orchid">31</span>
+                      Kraken <span className="text-[#E6FA72] dark:text-orchid">Habits</span>
                     </p>
                     <p className="font-mono-tabular truncate text-[10px] uppercase tracking-[0.14em] text-white/50">
                       {t("8-Pillar Engine")}
@@ -209,10 +207,8 @@ export default function AppLayout() {
             {/* Left: Mobile Brand + Live Day Pill */}
             <div className="flex min-w-0 items-center gap-2">
               <div className="flex items-center gap-2 lg:hidden">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
-                  <Proactive31Mark className="h-5 w-5" />
-                </div>
-                <span className="hidden min-[400px]:inline text-sm font-bold tracking-tight">Proactive31</span>
+                <KrakenHabitsMark className="h-8 w-8 shrink-0" />
+                <span className="hidden min-[400px]:inline text-sm font-bold tracking-tight">Kraken Habits</span>
               </div>
 
               <div className="hidden lg:flex items-center gap-2">
