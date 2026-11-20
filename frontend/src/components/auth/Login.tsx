@@ -13,7 +13,7 @@ import {
   Sparkles,
   Sun,
 } from 'lucide-react';
-import { HorizonGlyph, Proactive31Mark } from '../icons/BrandMark';
+import { HorizonGlyph, KrakenHabitsMark } from '../icons/BrandMark';
 import apiClient from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -44,10 +44,8 @@ export function AuthShowcasePanel() {
       <div className="flex flex-col justify-between rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-8">
         <div className="flex items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-3.5 py-1.5 dark:bg-[#1E1730]">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
-              <Proactive31Mark className="h-4 w-4" />
-            </span>
-            <span className="text-xs font-bold tracking-tight">Proactive31</span>
+            <KrakenHabitsMark className="h-6 w-6 shrink-0" />
+            <span className="text-xs font-bold tracking-tight">Kraken Habits</span>
           </div>
           <span className="rounded-full bg-[#E6FA72] px-3 py-1 font-mono-tabular text-[10px] font-bold uppercase tracking-[0.14em] text-[#121212] dark:bg-orchid/20 dark:text-orchid">
             {t("8-Pillar Telemetry")}
@@ -64,20 +62,20 @@ export function AuthShowcasePanel() {
             <span className="block text-[var(--text-secondary)]">{t("Execute Tomorrow.")}</span>
           </h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-[var(--text-secondary)]">
-            {t("Passive trackers log yesterday. Proactive31 locks your commitment across 8 Core Life Pillars every evening before you close your day.")}
+            {t("Passive trackers log yesterday. Kraken Habits locks your commitment across 8 Core Life Pillars every evening before you close your day.")}
           </p>
         </div>
       </div>
 
       {/* Bottom Asymmetrical Bento Visual Anchors */}
-      <div className="grid flex-1 grid-cols-12 gap-4">
+      <div className="grid flex-1 grid-cols-1 gap-4 xl:grid-cols-12">
         {/* 2D Vector Compass + Frosted Glass Pill Overlays */}
-        <div className="col-span-7 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="min-w-0 xl:col-span-7 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
             <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
               {t("8-Pillar Vector Matrix")}
             </span>
-            <span className="font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
+            <span className="shrink-0 whitespace-nowrap font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
               {t("360° Balance")}
             </span>
           </div>
@@ -85,13 +83,13 @@ export function AuthShowcasePanel() {
         </div>
 
         {/* High-Contrast Hardware Telemetry Preview Block */}
-        <div className="col-span-5 flex flex-col justify-between rounded-[28px] bg-[#121212] p-6 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
+        <div className="min-w-0 xl:col-span-5 flex flex-col justify-between rounded-[28px] bg-[#121212] p-6 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
           <div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
+            <div className="flex items-center justify-between gap-2">
+              <span className="min-w-0 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
                 {t("Sprint Cadence")}
               </span>
-              <span className="rounded-full bg-complete px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-complete px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
                 {t("DAY 07/31")}
               </span>
             </div>
@@ -134,32 +132,30 @@ export function AuthThemeToggleBar() {
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
 
   return (
-    <div className="mb-6 flex items-center justify-between gap-3 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-3.5 py-2">
-      <div className="flex items-center gap-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#121212] text-[#E6FA72] dark:bg-orchid dark:text-[#0D0914]">
-          <Proactive31Mark className="h-4.5 w-4.5" />
-        </span>
-        <span className="text-xs font-bold tracking-tight">Proactive31</span>
+    <div className="mb-6 flex items-center justify-between gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-recessed)] px-2.5 py-2 sm:gap-3 sm:px-3.5">
+      <div className="flex min-w-0 items-center gap-2">
+        <KrakenHabitsMark className="h-7 w-7 shrink-0" />
+        <span className="min-w-0 truncate text-xs font-bold tracking-tight">Kraken Habits</span>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <LanguageToggle />
         <button
           id="theme-toggle-btn"
           type="button"
           onClick={toggleTheme}
           aria-label={t(theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-3 py-1 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] px-2.5 py-1 sm:px-3 text-xs font-semibold text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors cursor-pointer"
         >
           {theme === 'dark' ? (
             <>
-              <Sun className="h-3.5 w-3.5 text-amber" />
-              <span>{t("Light")}</span>
+              <Sun className="h-3.5 w-3.5 shrink-0 text-amber" />
+              <span className="hidden min-[360px]:inline">{t("Light")}</span>
             </>
           ) : (
             <>
-              <Moon className="h-3.5 w-3.5" />
-              <span>{t("Dark")}</span>
+              <Moon className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden min-[360px]:inline">{t("Dark")}</span>
             </>
           )}
         </button>
@@ -226,7 +222,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           <AuthThemeToggleBar />
 
-          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
+          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5 sm:p-8">
             <div className="mb-7">
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                 {t("Command Center Access")}
@@ -292,8 +288,8 @@ export default function Login() {
                 </div>
                 <Input
                   id="login-password"
-                  name={t("password")}
-                  type={t("password")}
+                  name="password"
+                  type="password"
                   autoComplete="current-password"
                   required
                   value={password}
@@ -333,7 +329,7 @@ export default function Login() {
             </form>
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-5 text-sm">
-              <span className="text-[var(--text-secondary)]">{t("New to Proactive31?")}</span>
+              <span className="text-[var(--text-secondary)]">{t("New to Kraken Habits?")}</span>
               <Link
                 to="/register"
                 className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-sand)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-orchid dark:hover:text-[#0D0914] transition-colors"
@@ -344,7 +340,7 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-5 font-mono-tabular text-[11px] text-[var(--text-muted)]">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono-tabular text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-complete" />
               {t("Multi-tenant isolated")}

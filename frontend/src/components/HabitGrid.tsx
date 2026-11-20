@@ -66,8 +66,14 @@ const HabitGrid: React.FC = () => {
   const effectiveSelectedDay = selectedDayNumber ?? currentDayNumber;
   const isInspectingHistory =
     selectedDayNumber !== null && selectedDayNumber !== currentDayNumber;
+  const isInspectingTomorrow =
+    selectedDayNumber !== null && selectedDayNumber === currentDayNumber + 1;
+  const isInspectingFuture =
+    selectedDayNumber !== null && selectedDayNumber > currentDayNumber;
 
-  const displayedLog = isInspectingHistory ? selectedDayLog : todayLog;
+  const displayedLog = isInspectingHistory
+    ? (selectedDayLog ?? (isInspectingTomorrow ? tomorrowLog : null))
+    : todayLog;
   const isDisplayedDayClosed = Boolean(displayedLog?.isClosed);
   const canMutateDisplayedDay = !isInspectingHistory && Boolean(todayLog) && !todayLog?.isClosed;
 
@@ -358,9 +364,9 @@ const HabitGrid: React.FC = () => {
       )}
 
       {/* Asymmetrical 12-Column Bento Telemetry Header */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        {/* 1. 31-Day DotMatrixRibbon Day Inspector (lg:col-span-6) */}
-        <div className="lg:col-span-6 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
+        {/* 1. 31-Day DotMatrixRibbon Day Inspector (xl:col-span-5) */}
+        <div className="min-w-0 md:col-span-2 xl:col-span-5 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -392,8 +398,8 @@ const HabitGrid: React.FC = () => {
           />
         </div>
 
-        {/* 2. ConcentricRing Completion Telemetry (lg:col-span-2) */}
-        <div className="lg:col-span-2 flex flex-col items-center justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-sand)] p-5 text-center">
+        {/* 2. ConcentricRing Completion Telemetry (xl:col-span-3) */}
+        <div className="min-w-0 xl:col-span-3 flex flex-col items-center justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-sand)] p-5 text-center">
           <div className="w-full text-left">
             <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
               {t("Adherence")}
@@ -410,29 +416,29 @@ const HabitGrid: React.FC = () => {
             />
           </div>
 
-          <div className="grid w-full grid-cols-2 gap-2 border-t border-[var(--border-hairline)] pt-3">
-            <div>
+          <div className="grid w-full grid-cols-2 gap-1.5 border-t border-[var(--border-hairline)] pt-3">
+            <div className="min-w-0">
               <p className="font-mono-tabular text-sm font-bold text-[var(--text-primary)]">
                 {stats?.daysLogged ?? 0}
               </p>
-              <p className="font-mono-tabular text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+              <p className="truncate font-mono-tabular text-[9px] sm:text-[10px] uppercase tracking-[0.06em] text-[var(--text-muted)]">
                 {t("Logged")}
               </p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="inline-flex items-center justify-center gap-0.5 font-mono-tabular text-sm font-bold text-[#D98200] dark:text-amber">
                 <Flame className="h-3.5 w-3.5" />
                 {stats?.currentStreak ?? 0}d
               </p>
-              <p className="font-mono-tabular text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+              <p className="truncate font-mono-tabular text-[9px] sm:text-[10px] uppercase tracking-[0.06em] text-[var(--text-muted)]">
                 {t("Streak")}
               </p>
             </div>
           </div>
         </div>
 
-        {/* 3. High-Contrast Close Today Gatekeeper Card (lg:col-span-4) */}
-        <div className="lg:col-span-4 flex flex-col justify-between rounded-[28px] bg-[#121212] p-6 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
+        {/* 3. High-Contrast Close Today Gatekeeper Card (xl:col-span-4) */}
+        <div className="min-w-0 xl:col-span-4 flex flex-col justify-between rounded-[28px] bg-[#121212] p-5 sm:p-6 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
           <div>
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
@@ -519,11 +525,19 @@ const HabitGrid: React.FC = () => {
             </div>
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">
-                {t('Inspecting Day {0} (Read-Only History)', String(selectedDayNumber).padStart(2, '0'))}
+                {isInspectingTomorrow
+                  ? t("Inspecting Day {0} (Tomorrow's Plan)", String(selectedDayNumber).padStart(2, '0'))
+                  : isInspectingFuture
+                  ? t("Inspecting Day {0} (Upcoming Day)", String(selectedDayNumber).padStart(2, '0'))
+                  : t('Inspecting Day {0} (Read-Only History)', String(selectedDayNumber).padStart(2, '0'))}
               </p>
               <p className="font-mono-tabular text-xs text-[var(--text-secondary)]">
                 {displayedLog
-                  ? `${displayedLog.plans.filter((p) => p.isCompleted).length} / ${displayedLog.plans.length} actions completed${displayedLog.isClosed ? t(" · Day Closed") : ''}`
+                  ? isInspectingFuture
+                    ? t("{0} / {1} pillars planned", displayedLog.plans.length, totalPillars)
+                    : `${t("{0} / {1} actions completed", displayedLog.plans.filter((p) => p.isCompleted).length, displayedLog.plans.length)}${displayedLog.isClosed ? t(" · Day Closed") : ''}`
+                  : isInspectingFuture
+                  ? t("No actions planned for this day yet.")
                   : t("No actions were logged on this day.")}
               </p>
             </div>
@@ -545,24 +559,35 @@ const HabitGrid: React.FC = () => {
         {/* Matrix Column Headers (Desktop) */}
         <div className="hidden gap-4 border-b border-[var(--border-hairline)] bg-[var(--bg-sand)]/70 px-6 py-3.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:grid lg:grid-cols-12">
           <div className="col-span-3">{t("8 Core Pillars")}</div>
-          <div className="col-span-5 flex items-center justify-between">
+          <div className={`${isInspectingHistory ? 'col-span-9' : 'col-span-5'} flex items-center justify-between gap-2`}>
             <span>
-              {isInspectingHistory
+              {isInspectingTomorrow
+                ? t("Day {0} Plan (Tomorrow · Read-Only)", String(selectedDayNumber).padStart(2, '0'))
+                : isInspectingFuture
+                ? t("Day {0} Schedule (Read-Only)", String(selectedDayNumber).padStart(2, '0'))
+                : isInspectingHistory
                 ? t("Day {0} Execution (Read-Only)", String(selectedDayNumber).padStart(2, '0'))
                 : t("Today's Execution")}
             </span>
-            {isDisplayedDayClosed && (
+            {isDisplayedDayClosed ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-complete px-2.5 py-0.5 text-[10px] font-bold text-[#121212]">
                 <Lock className="h-3 w-3" /> {t("Locked")}
               </span>
-            )}
+            ) : isInspectingHistory ? (
+              <span className="rounded-full bg-[var(--bg-card)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
+                {displayedLog?.plans.length ?? 0}/{totalPillars}{' '}
+                {isInspectingFuture ? t("Planned") : t("Logged")}
+              </span>
+            ) : null}
           </div>
-          <div className="col-span-4 flex items-center justify-between">
-            <span>{t("Tomorrow's Proactive Plan")}</span>
-            <span className="rounded-full bg-[var(--bg-card)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
-              {tomorrowPlannedCount}/{totalPillars} {t("Planned")}
-            </span>
-          </div>
+          {!isInspectingHistory && (
+            <div className="col-span-4 flex items-center justify-between">
+              <span>{t("Tomorrow's Proactive Plan")}</span>
+              <span className="rounded-full bg-[var(--bg-card)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
+                {tomorrowPlannedCount}/{totalPillars} {t("Planned")}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="divide-y divide-[var(--border-hairline)]">
@@ -602,9 +627,11 @@ const HabitGrid: React.FC = () => {
                 </div>
 
                 {/* Zone 2: Today's Execution (or Inspected Day) */}
-                <div className="lg:col-span-5">
+                <div className={isInspectingHistory ? 'lg:col-span-9' : 'lg:col-span-5'}>
                   <div className="mb-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:hidden">
-                    {isInspectingHistory
+                    {isInspectingTomorrow
+                      ? t("Day {0} Plan (Tomorrow)", String(selectedDayNumber).padStart(2, '0'))
+                      : isInspectingHistory
                       ? t("Day {0} Log", String(selectedDayNumber).padStart(2, '0'))
                       : t("Today's Execution")}
                   </div>
@@ -658,7 +685,7 @@ const HabitGrid: React.FC = () => {
                             type="button"
                             disabled={!canMutateDisplayedDay}
                             onClick={() => canMutateDisplayedDay && beginEdit(todayAction)}
-                            className={`truncate text-left text-sm font-medium ${
+                            className={`line-clamp-2 break-words text-left text-sm font-medium ${
                               todayAction.isCompleted
                                 ? 'text-[var(--text-secondary)] line-through'
                                 : 'text-[var(--text-primary)]'
@@ -672,26 +699,44 @@ const HabitGrid: React.FC = () => {
                         )}
                       </div>
 
-                      {canMutateDisplayedDay && !isEditingToday && (
-                        <div className="flex shrink-0 items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => beginEdit(todayAction)}
-                            aria-label={t("Edit {0} today goal", translatePillarText(language, category.name))}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(todayAction.id)}
-                            disabled={busyActionKey === `delete-${todayAction.id}`}
-                            aria-label={t("Delete {0} today goal", translatePillarText(language, category.name))}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                      {isInspectingHistory ? (
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-0.5 font-mono-tabular text-[9px] font-bold uppercase tracking-[0.08em] ${
+                            todayAction.isCompleted
+                              ? 'bg-complete text-[#121212]'
+                              : isInspectingFuture
+                              ? 'bg-amber/25 text-[#9A5B00] dark:bg-amber/20 dark:text-amber'
+                              : 'border border-[var(--border-hairline)] bg-[var(--bg-card)] text-[var(--text-muted)]'
+                          }`}
+                        >
+                          {todayAction.isCompleted
+                            ? t("Done")
+                            : isInspectingFuture
+                            ? t("Planned")
+                            : t("Skipped")}
+                        </span>
+                      ) : (
+                        canMutateDisplayedDay && !isEditingToday && (
+                          <div className="flex shrink-0 items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => beginEdit(todayAction)}
+                              aria-label={t("Edit {0} today goal", translatePillarText(language, category.name))}
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(todayAction.id)}
+                              disabled={busyActionKey === `delete-${todayAction.id}`}
+                              aria-label={t("Delete {0} today goal", translatePillarText(language, category.name))}
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )
                       )}
                     </div>
                   ) : canMutateDisplayedDay ? (
@@ -726,14 +771,17 @@ const HabitGrid: React.FC = () => {
                     </form>
                   ) : (
                     <div className="rounded-full border border-dashed border-[var(--border-strong)] bg-hatch-fine px-4 py-2 text-xs italic text-[var(--text-muted)]">
-                      {isInspectingHistory
+                      {isInspectingFuture
+                        ? t("No goal planned for this pillar yet")
+                        : isInspectingHistory
                         ? t("No goal recorded for this pillar")
                         : t("Day is closed")}
                     </div>
                   )}
                 </div>
 
-                {/* Zone 3: Tomorrow's Proactive Plan */}
+                {/* Zone 3: Tomorrow's Proactive Plan (Only shown when viewing Today) */}
+                {!isInspectingHistory && (
                 <div className="lg:col-span-4">
                   <div className="mb-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:hidden">
                     {t("Tomorrow's Proactive Plan")}
@@ -768,7 +816,7 @@ const HabitGrid: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => beginEdit(tomorrowAction)}
-                            className="truncate text-left text-sm font-medium text-[var(--text-primary)] hover:opacity-80 cursor-text"
+                            className="line-clamp-2 break-words text-left text-sm font-medium text-[var(--text-primary)] hover:opacity-80 cursor-text"
                             title={t("Click to edit tomorrow's plan")}
                           >
                             {tomorrowAction.description}
@@ -834,6 +882,7 @@ const HabitGrid: React.FC = () => {
                     </form>
                   )}
                 </div>
+                )}
               </div>
             );
           })}

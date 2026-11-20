@@ -62,9 +62,9 @@ export function configurePasswordResetDelivery(env: NodeJS.ProcessEnv): Password
         await transport.sendMail({
             from: PASSWORD_RESET_FROM,
             to: { address: email, name: '' },
-            subject: 'Reset your Proactive31 password',
+            subject: 'Reset your Kraken Habits password',
             text: [
-                'Open this link to reset your Proactive31 password:',
+                'Open this link to reset your Kraken Habits password:',
                 link.toString(),
                 '',
                 `This link expires at ${expiresAt.toISOString()}.`,

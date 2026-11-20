@@ -73,7 +73,7 @@ export default function Register() {
         <div className="w-full max-w-md">
           <AuthThemeToggleBar />
 
-          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
+          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5 sm:p-8">
             <div className="mb-7">
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                 {t("31-Day Sprint Onboarding")}
@@ -119,8 +119,8 @@ export default function Register() {
                 </label>
                 <Input
                   id="register-password"
-                  name={t("password")}
-                  type={t("password")}
+                  name="password"
+                  type="password"
                   autoComplete="new-password"
                   required
                   value={password}
@@ -139,7 +139,7 @@ export default function Register() {
                 <Input
                   id="register-confirm-password"
                   name="confirmPassword"
-                  type={t("password")}
+                  type="password"
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -188,7 +188,7 @@ export default function Register() {
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-5 font-mono-tabular text-[11px] text-[var(--text-muted)]">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono-tabular text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-complete" />
               {t("Instant JWT auto-login")}

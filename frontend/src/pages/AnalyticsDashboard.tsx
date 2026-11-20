@@ -293,9 +293,9 @@ export default function AnalyticsDashboard() {
       ) : (
         <>
           {/* Row 1: Asymmetrical Bento KPI Cluster */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            {/* Hero Accent Completion Card (lg:col-span-5) */}
-            <Card variant="accent" className="flex flex-col justify-between p-6 sm:p-7 lg:col-span-5">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+            {/* Hero Accent Completion Card (xl:col-span-5) */}
+            <Card variant="accent" className="min-w-0 flex flex-col justify-between p-5 sm:p-7 xl:col-span-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <span className="font-mono-tabular text-[10px] font-bold uppercase tracking-[0.14em] opacity-75">
@@ -319,14 +319,14 @@ export default function AnalyticsDashboard() {
                 />
               </div>
 
-              <div className="mt-6 flex items-center justify-between border-t border-black/10 pt-4 font-mono-tabular text-[11px] font-semibold">
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-black/10 pt-4 font-mono-tabular text-[11px] font-semibold">
                 <span>{t("TODAY COMPLETION:")} {formatPercent(todayRate)}</span>
                 <span>{t("BEST STREAK:")} {stats?.bestStreak ?? 0}D</span>
               </div>
             </Card>
 
-            {/* Right Asymmetrical 2+1 KPI Cluster (lg:col-span-7) */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">
+            {/* Right Asymmetrical 2+1 KPI Cluster (xl:col-span-7) */}
+            <div className="min-w-0 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-7">
               <Card variant="default" className="flex flex-col justify-between p-6">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -409,10 +409,10 @@ export default function AnalyticsDashboard() {
           </div>
 
           {/* Row 2: Hardware Telemetry Visualizations (NO Recharts) */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            {/* 8-Pillar Balance (lg:col-span-5) */}
-            <Card className="lg:col-span-5 flex flex-col">
-              <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+            {/* 8-Pillar Balance (xl:col-span-5) */}
+            <Card className="min-w-0 xl:col-span-5 flex flex-col">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between space-y-0 pb-3">
                 <div>
                   <CardTitle>{t("8-Pillar Balance")}</CardTitle>
                   <CardDescription>{t("Completion rate across Core Pillars")}</CardDescription>
@@ -492,8 +492,8 @@ export default function AnalyticsDashboard() {
               </CardContent>
             </Card>
 
-            {/* 31-Day Consistency Trend (lg:col-span-7) */}
-            <Card className="lg:col-span-7 flex flex-col">
+            {/* 31-Day Consistency Trend (xl:col-span-7) */}
+            <Card className="min-w-0 xl:col-span-7 flex flex-col">
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between space-y-0 pb-3">
                 <div>
                   <CardTitle>{t("31-Day Consistency Trend")}</CardTitle>

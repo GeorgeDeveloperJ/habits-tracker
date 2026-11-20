@@ -36,8 +36,8 @@ export const SegmentedBattery: React.FC<SegmentedBatteryProps> = ({
 
   const sizeMap = {
     sm: { cap: 'h-6 w-2.5', dot: 'h-1 w-1', gap: 'gap-1' },
-    md: { cap: 'h-9 w-3.5', dot: 'h-1.5 w-1.5', gap: 'gap-1.5' },
-    lg: { cap: 'h-12 w-4', dot: 'h-1.5 w-1.5', gap: 'gap-2' },
+    md: { cap: 'h-9 w-3.5', dot: 'h-1.5 w-1.5', gap: 'gap-1 sm:gap-1.5' },
+    lg: { cap: 'h-12 w-4', dot: 'h-1.5 w-1.5', gap: 'gap-1.5 sm:gap-2' },
   }[size];
 
   const getCapsuleStyle = (isFilled: boolean) => {
@@ -80,12 +80,12 @@ export const SegmentedBattery: React.FC<SegmentedBatteryProps> = ({
       {(label || showCount) && (
         <div className="flex items-center justify-between gap-2">
           {label && (
-            <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] opacity-75">
+            <span className="min-w-0 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] opacity-75">
               {label}
             </span>
           )}
           {showCount && (
-            <span className="font-mono-tabular text-xs font-semibold">
+            <span className="shrink-0 whitespace-nowrap font-mono-tabular text-xs font-semibold">
               {String(clampedFilled).padStart(2, '0')} / {String(clampedTotal).padStart(2, '0')}
             </span>
           )}
@@ -196,10 +196,10 @@ export const CapsuleBarChart: React.FC<CapsuleBarChartProps> = ({
     <div className={cn('flex flex-col gap-3', className)}>
       {/* Flat telemetry readout bar */}
       <div className="flex min-h-6 items-center justify-between gap-2 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-canvas-warm)] px-3.5 py-1 dark:bg-[#120D1D]">
-        <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+        <span className="min-w-0 truncate font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
           {hoveredItem ? hoveredItem.label : t("Telemetry Readout")}
         </span>
-        <span className="font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
+        <span className="shrink-0 font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
           {hoveredItem
             ? `${hoveredHasCustomMax ? `${hoveredSafeValue}/${hoveredItem.max}` : formatPercent(hoveredSafeValue)}${hoveredItem.meta ? ` · ${hoveredItem.meta}` : ''}`
             : t("Hover bar to inspect")}
@@ -207,83 +207,89 @@ export const CapsuleBarChart: React.FC<CapsuleBarChartProps> = ({
       </div>
 
       {/* Stadium Bar Columns */}
-      <div
-        className="flex items-end justify-between gap-1.5 sm:gap-2"
-        style={{ height: safeChartHeight }}
-      >
-        {data.map((item) => {
-          const safeValue = Number.isFinite(item.value) ? Math.max(0, item.value) : 0;
-          const safeMax =
-            typeof item.max === 'number' && Number.isFinite(item.max) && item.max > 0
-              ? item.max
-              : 100;
-          const ratio = Math.max(0, Math.min(1, safeValue / safeMax));
-          const isEmpty =
-            item.state === 'empty' ||
-            item.state === 'projected' ||
-            item.state === 'hatched' ||
-            safeValue <= 0;
-          const fillPct = isEmpty ? 100 : Math.max(18, Math.round(ratio * 100));
-          const isHovered = hoveredId === item.id;
+      <div className="overflow-x-auto pb-1">
+        <div
+          className={cn(
+            'flex items-end justify-between gap-1.5 sm:gap-2',
+            data.length <= 12 && 'min-w-[460px]'
+          )}
+          style={{ height: safeChartHeight }}
+        >
+          {data.map((item) => {
+            const safeValue = Number.isFinite(item.value) ? Math.max(0, item.value) : 0;
+            const safeMax =
+              typeof item.max === 'number' && Number.isFinite(item.max) && item.max > 0
+                ? item.max
+                : 100;
+            const ratio = Math.max(0, Math.min(1, safeValue / safeMax));
+            const isEmpty =
+              item.state === 'empty' ||
+              item.state === 'projected' ||
+              item.state === 'hatched' ||
+              safeValue <= 0;
+            const fillPct = isEmpty ? 100 : Math.max(18, Math.round(ratio * 100));
+            const isHovered = hoveredId === item.id;
 
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onMouseEnter={() => setHoveredId(item.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              onFocus={() => setHoveredId(item.id)}
-              onBlur={() => setHoveredId(null)}
-              onClick={() => onBarClick?.(item.id)}
-              className={cn(
-                'group flex h-full flex-1 flex-col items-center gap-2 focus:outline-none',
-                onBarClick ? 'cursor-pointer' : 'cursor-default'
-              )}
-              aria-label={`${item.label}: ${safeValue}${item.meta ? `, ${item.meta}` : ''}`}
-            >
-              {/* Dashed Ghost Track */}
-              <div
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onMouseEnter={() => setHoveredId(item.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                onFocus={() => setHoveredId(item.id)}
+                onBlur={() => setHoveredId(null)}
+                onClick={() => onBarClick?.(item.id)}
                 className={cn(
-                  'relative flex w-full max-w-[34px] flex-1 items-end overflow-hidden rounded-full border border-dashed p-[3px] transition-colors',
-                  isHovered
-                    ? 'border-[var(--text-primary)]'
-                    : 'border-[var(--border-strong)]'
+                  'group flex h-full min-w-0 flex-1 flex-col items-center gap-2 focus:outline-none',
+                  onBarClick ? 'cursor-pointer' : 'cursor-default'
                 )}
+                aria-label={`${item.label}: ${safeValue}${item.meta ? `, ${item.meta}` : ''}`}
+                title={item.label}
               >
-                {/* Capsule Fill */}
+                {/* Dashed Ghost Track */}
                 <div
                   className={cn(
-                    'relative flex w-full flex-col items-center justify-start rounded-full pt-1.5 transition-all duration-300',
-                    getFillClass(item, ratio)
+                    'relative flex w-full max-w-[34px] flex-1 items-end overflow-hidden rounded-full border border-dashed p-[3px] transition-colors',
+                    isHovered
+                      ? 'border-[var(--text-primary)]'
+                      : 'border-[var(--border-strong)]'
                   )}
-                  style={{ height: `${fillPct}%` }}
                 >
-                  {showDots && !isEmpty && (
-                    <span
-                      className={cn(
-                        'h-1.5 w-1.5 rounded-full',
-                        item.state === 'active' && ratio < 0.75
-                          ? 'bg-[#E6FA72] dark:bg-[#0D0914]'
-                          : item.state === 'muted'
-                          ? 'bg-[var(--text-secondary)]'
-                          : 'bg-[#121212] dark:bg-[#0D0914]'
-                      )}
-                    />
-                  )}
+                  {/* Capsule Fill */}
+                  <div
+                    className={cn(
+                      'relative flex w-full flex-col items-center justify-start rounded-full pt-1.5 transition-all duration-300',
+                      getFillClass(item, ratio)
+                    )}
+                    style={{ height: `${fillPct}%` }}
+                  >
+                    {showDots && !isEmpty && (
+                      <span
+                        className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          item.state === 'active' && ratio < 0.75
+                            ? 'bg-[#E6FA72] dark:bg-[#0D0914]'
+                            : item.state === 'muted'
+                            ? 'bg-[var(--text-secondary)]'
+                            : 'bg-[#121212] dark:bg-[#0D0914]'
+                        )}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <span
-                className={cn(
-                  'font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.06em] transition-colors',
-                  isHovered ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
-                )}
-              >
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
+                <span
+                  className={cn(
+                    'max-w-full truncate font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.06em] transition-colors',
+                    isHovered ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+                  )}
+                >
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -480,13 +486,15 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
 }) => {
   const { t } = useLanguage();
   return (
-    <div
-      className={cn(
-        'grid gap-1.5',
-        compact ? 'grid-cols-8 sm:grid-cols-11' : 'grid-cols-8 sm:grid-cols-11 lg:grid-cols-16',
-        className
-      )}
-    >
+    <div className={cn('@container', className)}>
+      <div
+        className={cn(
+          'grid gap-1.5',
+          compact
+            ? 'grid-cols-6 @[220px]:grid-cols-7 @[280px]:grid-cols-8 @[360px]:grid-cols-11'
+            : 'grid-cols-7 @[280px]:grid-cols-8 @[380px]:grid-cols-11 @[520px]:grid-cols-16'
+        )}
+      >
       {days.map((d, idx) => {
         const safeDayNumber = Number.isFinite(d.dayNumber)
           ? Math.max(1, Math.floor(d.dayNumber))
@@ -560,6 +568,7 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
           </button>
         );
       })}
+      </div>
     </div>
   );
 };
@@ -578,14 +587,14 @@ interface CompassSlot {
 }
 
 const COMPASS_SLOTS: CompassSlot[] = [
-  { style: { top: '6%', left: '50%', transform: 'translateX(-50%)' }, isSide: false }, // Top: Learning
-  { style: { top: '23%', right: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Top-Right: Physical
-  { style: { top: '50%', right: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Right: Nutrition
-  { style: { top: '77%', right: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Bottom-Right: Mindfulness
-  { style: { bottom: '6%', left: '50%', transform: 'translateX(-50%)' }, isSide: false }, // Bottom: Focus
-  { style: { top: '77%', left: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Bottom-Left: Finance
-  { style: { top: '50%', left: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Left: Order
-  { style: { top: '23%', left: '3%', transform: 'translateY(-50%)' }, isSide: true }, // Top-Left: Rest
+  { style: { top: '5%', left: '50%', transform: 'translateX(-50%)' }, isSide: false }, // Top: Learning
+  { style: { top: '22%', right: '2%', transform: 'translateY(-50%)' }, isSide: true }, // Top-Right: Physical
+  { style: { top: '50%', right: '2%', transform: 'translateY(-50%)' }, isSide: true }, // Right: Nutrition
+  { style: { top: '78%', right: '2%', transform: 'translateY(-50%)' }, isSide: true }, // Bottom-Right: Mindfulness
+  { style: { bottom: '5%', left: '50%', transform: 'translateX(-50%)' }, isSide: false }, // Bottom: Focus
+  { style: { top: '78%', left: '2%', transform: 'translateY(-50%)' }, isSide: true }, // Bottom-Left: Finance
+  { style: { top: '50%', left: '2%', transform: 'translateY(-50%)' }, isSide: true }, // Left: Order
+  { style: { top: '22%', left: '2%', transform: 'translateY(-50%)' }, isSide: true }, // Top-Left: Rest
 ];
 
 export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
@@ -610,7 +619,7 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
         <circle
           cx="180"
           cy="130"
-          r="98"
+          r="80"
           fill="none"
           stroke="currentColor"
           strokeOpacity="0.14"
@@ -620,7 +629,7 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
         <circle
           cx="180"
           cy="130"
-          r="66"
+          r="56"
           fill="none"
           stroke="currentColor"
           strokeOpacity="0.22"
@@ -629,7 +638,7 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
         <circle
           cx="180"
           cy="130"
-          r="34"
+          r="32"
           fill="none"
           stroke="currentColor"
           strokeOpacity="0.15"
@@ -639,10 +648,10 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
         {/* 8 Radial Vector Axes */}
         {Array.from({ length: 8 }, (_, idx) => {
           const angle = ((idx * 45 - 90) * Math.PI) / 180;
-          const x1 = 180 + Math.cos(angle) * 34;
-          const y1 = 130 + Math.sin(angle) * 34;
-          const x2 = 180 + Math.cos(angle) * 98;
-          const y2 = 130 + Math.sin(angle) * 98;
+          const x1 = 180 + Math.cos(angle) * 32;
+          const y1 = 130 + Math.sin(angle) * 32;
+          const x2 = 180 + Math.cos(angle) * 80;
+          const y2 = 130 + Math.sin(angle) * 80;
           const isHighlight = idx === activePillarIndex;
 
           return (
@@ -674,7 +683,7 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
         <circle
           cx="180"
           cy="130"
-          r="24"
+          r="22"
           className="fill-[#121212] dark:fill-orchid"
         />
         <text
@@ -701,8 +710,8 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
             key={pillar.name}
             style={slot.style}
             className={cn(
-              'glass-pill absolute inline-flex w-max items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors xl:text-[11px]',
-              slot.isSide ? 'max-w-[44%]' : 'max-w-[85%]',
+              'glass-pill absolute inline-flex w-max items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors xl:gap-1.5 xl:px-2.5 xl:text-[11px]',
+              slot.isSide ? 'max-w-[46%]' : 'max-w-[85%]',
               isActive
                 ? 'border-[#121212] bg-[#E6FA72]/90 text-[#121212] dark:border-orchid dark:bg-orchid/90 dark:text-[#0D0914]'
                 : 'text-[var(--text-primary)]'

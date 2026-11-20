@@ -88,9 +88,9 @@ const StartSprintScreen: React.FC = () => {
   return (
     <div className="mx-auto max-w-7xl space-y-4">
       {/* Asymmetrical Top Bento Header */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        {/* Left Hero Bento Card (lg:col-span-8) */}
-        <div className="lg:col-span-8 flex flex-col justify-between rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-6 sm:p-8">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        {/* Left Hero Bento Card (xl:col-span-8) */}
+        <div className="min-w-0 xl:col-span-8 flex flex-col justify-between rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5 sm:p-8">
           <div>
             <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
               {t("31-Day Sprint Launchpad · 8 Core Pillars")}
@@ -108,11 +108,11 @@ const StartSprintScreen: React.FC = () => {
           </div>
 
           <div className="mt-6 border-t border-[var(--border-hairline)] pt-5">
-            <div className="mb-2.5 flex items-center justify-between">
+            <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
               <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                 {t("31-Day Capsule Cadence Preview")}
               </span>
-              <span className="font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
+              <span className="shrink-0 whitespace-nowrap font-mono-tabular text-[11px] font-semibold text-[var(--text-primary)]">
                 {t("DAY 01 ACTIVE")}
               </span>
             </div>
@@ -120,15 +120,15 @@ const StartSprintScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Right High-Contrast Readiness Card (lg:col-span-4) */}
-        <div className="lg:col-span-4 flex flex-col justify-between rounded-[32px] bg-[#121212] p-6 sm:p-7 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
+        {/* Right High-Contrast Readiness Card (xl:col-span-4) */}
+        <div className="min-w-0 xl:col-span-4 flex flex-col justify-between rounded-[32px] bg-[#121212] p-5 sm:p-7 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
           <div>
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
                 <Calendar className="h-3.5 w-3.5 text-[#E6FA72] dark:text-orchid" />
                 {t("Sprint Window")}
               </span>
-              <span className="rounded-full bg-complete px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-complete px-2.5 py-0.5 font-mono-tabular text-[10px] font-bold text-[#121212]">
                 {t("31 DAYS")}
               </span>
             </div>
