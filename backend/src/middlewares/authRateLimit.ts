@@ -14,7 +14,7 @@ const loginAccount = { maxAttempts: 10, windowSeconds: 15 * minute };
 const recoveryAccount = { maxAttempts: 1, windowSeconds: minute };
 
 export const authRateLimit = (
-    action: 'register' | 'login' | 'recover' | 'reset',
+    action: 'register' | 'login' | 'recover' | 'reset' | 'verify-email' | 'resend-verification',
     maxSourceAttempts: number
 ): RequestHandler => async (req, res, next) => {
     try {

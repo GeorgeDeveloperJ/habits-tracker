@@ -87,6 +87,7 @@ model User {
   email               String               @unique
   hashedPassword      String
   sessionVersion      Int                  @default(0)
+  emailVerifiedAt     DateTime?
 
   // Relations
   cycles              Cycle[]
@@ -117,4 +118,19 @@ model AuthRateBucket {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+model EmailVerificationChallenge {
+  id              String   @id
+  email           String   @unique
+  hashedPassword  String?
+  userId          String?
+  sessionVersion  Int?
+  codeDigest      String
+  attemptsLeft    Int
+  sentAt          DateTime
+  expiresAt       DateTime
+  retryUntil      DateTime
+
+  @@index([retryUntil])
 }

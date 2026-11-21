@@ -2,6 +2,7 @@
  * Typed service layer for Proactive 31-Day Habit Tracker API communication.
  */
 import apiClient from '../api/client';
+import type { Language } from '../i18n/messages';
 
 export interface HabitCategory {
   id: string;
@@ -121,8 +122,51 @@ export interface InitialGoalInput {
   description: string;
 }
 
-export const requestPasswordReset = async (email: string): Promise<void> => {
-  await apiClient.post('/auth/forgot-password', { email: email.trim() });
+interface AuthSession {
+  token: string;
+  id: string;
+  email: string;
+}
+
+export interface VerificationChallenge {
+  challengeId: string;
+  email: string;
+  deliveryFailed: boolean;
+}
+
+type VerificationRequired = { code: 'verification_required'; data: VerificationChallenge };
+type SignInResult = VerificationRequired | { code?: undefined; data: AuthSession };
+interface AuthCredentials {
+  email: string;
+  password: string;
+  language: Language;
+}
+
+export async function startRegistration(credentials: AuthCredentials): Promise<VerificationChallenge> {
+  const { data } = await apiClient.post<VerificationRequired>('/auth/register', credentials);
+  if (data.code !== 'verification_required' || !data.data?.challengeId) {
+    throw new Error('Invalid registration response');
+  }
+  return data.data;
+}
+
+export async function signIn(credentials: AuthCredentials): Promise<SignInResult> {
+  const { data } = await apiClient.post<SignInResult>('/auth/login', credentials);
+  return data;
+}
+
+export async function verifyEmail(challengeId: string, code: string): Promise<AuthSession> {
+  const response = await apiClient.post<{ data: AuthSession }>('/auth/verify-email', { challengeId, code });
+  return response.data.data;
+}
+
+export async function resendEmailVerification(challengeId: string, language: Language): Promise<VerificationChallenge> {
+  const response = await apiClient.post<VerificationRequired>('/auth/resend-verification', { challengeId, language });
+  return response.data.data;
+}
+
+export const requestPasswordReset = async (email: string, language: Language): Promise<void> => {
+  await apiClient.post('/auth/forgot-password', { email: email.trim(), language });
 };
 
 export const resetPassword = async (payload: {

@@ -1,13 +1,15 @@
 import nodemailer from 'nodemailer';
 
-export type PasswordResetDelivery = (email: string, token: string, expiresAt: Date) => Promise<void>;
+import { renderAuthEmail, type EmailLanguage } from './authEmailTemplate';
+
+export type AuthEmailDelivery = (email: string, credential: string, expiresAt: Date, language?: EmailLanguage) => Promise<void>;
 
 const smtpErrorCodes = new Set([
     'EAUTH', 'ECONNECTION', 'ECONNREFUSED', 'ECONNRESET', 'EDNS', 'EENVELOPE',
     'EMESSAGE', 'EPROTOCOL', 'ESOCKET', 'ETIMEDOUT', 'ETLS', 'EURL'
 ]);
 
-export function passwordResetDeliveryErrorCode(error: unknown): string {
+export function smtpErrorCode(error: unknown): string {
     if (!(error instanceof Error)) return 'unknown';
     const { code, responseCode } = error as Error & { code?: unknown; responseCode?: unknown };
     const safeCode = typeof code === 'string' && smtpErrorCodes.has(code) ? code : 'unknown';
@@ -16,7 +18,10 @@ export function passwordResetDeliveryErrorCode(error: unknown): string {
         : safeCode;
 }
 
-export function configurePasswordResetDelivery(env: NodeJS.ProcessEnv): PasswordResetDelivery | undefined {
+export function configureAuthEmail(env: NodeJS.ProcessEnv): {
+    passwordReset: AuthEmailDelivery;
+    verification: AuthEmailDelivery;
+} | undefined {
     const { SMTP_URL, PASSWORD_RESET_FROM, PUBLIC_APP_URL } = env;
     if (!SMTP_URL && !PASSWORD_RESET_FROM && !PUBLIC_APP_URL) return undefined;
     if (!SMTP_URL || !PASSWORD_RESET_FROM || !PUBLIC_APP_URL) {
@@ -29,7 +34,7 @@ export function configurePasswordResetDelivery(env: NodeJS.ProcessEnv): Password
         smtpUrl = new URL(SMTP_URL);
         appUrl = new URL(PUBLIC_APP_URL);
     } catch {
-        throw new Error('Invalid password recovery URL configuration');
+        throw new Error('Invalid authentication email URL configuration');
     }
 
     if (!['smtp:', 'smtps:'].includes(smtpUrl.protocol) || !smtpUrl.username || !smtpUrl.password) {
@@ -55,21 +60,14 @@ export function configurePasswordResetDelivery(env: NodeJS.ProcessEnv): Password
         socketTimeout: 10000
     });
 
-    return async (email, token, expiresAt) => {
-        const link = new URL('/reset-password', appUrl);
-        link.hash = new URLSearchParams({ token }).toString();
+    const send = (kind: 'reset' | 'verification'): AuthEmailDelivery =>
+        async (email, credential, expiresAt, language = 'en') => {
+            await transport.sendMail({
+                from: PASSWORD_RESET_FROM,
+                to: { address: email, name: '' },
+                ...renderAuthEmail(kind, appUrl, credential, expiresAt, language)
+            });
+        };
 
-        await transport.sendMail({
-            from: PASSWORD_RESET_FROM,
-            to: { address: email, name: '' },
-            subject: 'Reset your Kraken Habits password',
-            text: [
-                'Open this link to reset your Kraken Habits password:',
-                link.toString(),
-                '',
-                `This link expires at ${expiresAt.toISOString()}.`,
-                'If you did not request a password reset, you can ignore this email.'
-            ].join('\n')
-        });
-    };
+    return { passwordReset: send('reset'), verification: send('verification') };
 }

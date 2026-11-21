@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import http from 'node:http';
 import { after, before, describe, it } from 'node:test';
 import type { Express } from 'express';
+import { renderAuthEmail } from '../src/config/authEmailTemplate';
 
 process.env.NODE_ENV = 'test';
 
@@ -48,6 +49,11 @@ async function apiRequest<T = Record<string, unknown>>(
   return { status: res.status, body: parsed };
 }
 
+type Session = { token: string; id: string; email: string };
+type Verification = { challengeId: string; email: string; deliveryFailed: boolean };
+const verificationMailbox = new Map<string, { code: string; language: string }>();
+let failVerificationDelivery = false;
+
 const testMailbox = new Map<string, { resetToken: string; expiresAt: string }>();
 
 async function requestResetFromMailbox(
@@ -70,22 +76,33 @@ function uniqueEmail(label: string): string {
     .slice(2, 8)}@example.com`;
 }
 
-async function registerTestUser(label: string, password = 'Password123!') {
-  const email = uniqueEmail(label);
-  const res = await apiRequest<{
-    success: boolean;
-    message: string;
-    data: { token: string; id: string; email: string };
-  }>('/api/auth/register', {
+function startSignup(email: string, password: string, language = 'en') {
+  return apiRequest<{ success: boolean; code: string; data: Verification }>('/api/auth/register', {
     method: 'POST',
-    body: { email, password },
+    body: { email, password, language },
   });
-  assert.equal(res.status, 201, `Expected 201 registering ${label}, got ${res.status}`);
-  createdUserIds.push(res.body.data.id);
-  return { password, ...res.body.data };
+}
+
+function verifyEmail(challengeId: string, code: string) {
+  return apiRequest<{ success: boolean; data: Session }>('/api/auth/verify-email', {
+    method: 'POST',
+    body: { challengeId, code },
+  });
+}
+
+async function registerTestUser(label: string, password = 'Password123!', email = uniqueEmail(label)) {
+  const started = await startSignup(email, password);
+  assert.equal(started.status, 202, `Expected 202 starting registration for ${label}, got ${started.status}`);
+  const mail = verificationMailbox.get(email.trim().toLowerCase());
+  assert.ok(mail, 'The verification code must be sent to the inbox');
+  const verified = await verifyEmail(started.body.data.challengeId, mail.code);
+  assert.equal(verified.status, 201, `Expected 201 completing registration for ${label}, got ${verified.status}`);
+  createdUserIds.push(verified.body.data.id);
+  return { password, ...verified.body.data };
 }
 
 async function cleanupTestUsers() {
+  await prisma.emailVerificationChallenge.deleteMany({ where: { email: { startsWith: TEST_EMAIL_PREFIX } } });
   const users = await prisma.user.findMany({
     where: {
       OR: [
@@ -113,6 +130,11 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
     app = mod.app;
     app.locals.passwordResetDelivery = async (email: string, resetToken: string, expiresAt: Date) => {
       testMailbox.set(email, { resetToken, expiresAt: expiresAt.toISOString() });
+    };
+
+    app.locals.emailVerificationDelivery = async (email: string, code: string, _expiresAt: Date, language: string) => {
+      if (failVerificationDelivery) throw Object.assign(new Error('SMTP unavailable'), { code: 'ETIMEDOUT' });
+      verificationMailbox.set(email, { code, language });
     };
 
     await cleanupTestUsers();
@@ -182,22 +204,30 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
         );
       });
 
-      it('T1-AUTH-01: registers user and returns 201 with { token, id, email }', async () => {
+      it('T1-AUTH-01: signup requires inbox proof before creating an account or issuing a session', async () => {
         const email = uniqueEmail('t1_reg');
-        const res = await apiRequest<{
-          success: boolean;
-          message: string;
-          data: { token: string; id: string; email: string };
-        }>('/api/auth/register', {
-          method: 'POST',
-          body: { email, password: 'Password123!' },
-        });
-        assert.equal(res.status, 201);
-        assert.equal(res.body.success, true);
-        assert.ok(res.body.data.token.length > 20);
-        assert.ok(res.body.data.id);
-        assert.equal(res.body.data.email, email);
-        createdUserIds.push(res.body.data.id);
+        const password = 'Password123!';
+        const started = await startSignup(email, password, 'es');
+        assert.equal(started.status, 202);
+        assert.equal(started.body.code, 'verification_required');
+        assert.deepEqual(Object.keys(started.body.data).sort(), ['challengeId', 'deliveryFailed', 'email']);
+        assert.equal(await prisma.user.findUnique({ where: { email } }), null);
+        const earlyLogin = await apiRequest('/api/auth/login', { method: 'POST', body: { email, password } });
+        assert.equal(earlyLogin.status, 401);
+
+        const mail = verificationMailbox.get(email);
+        assert.ok(mail);
+        assert.equal(mail.language, 'es');
+        assert.match(mail.code, /^\d{6}$/);
+        const attempts = await Promise.all([
+          verifyEmail(started.body.data.challengeId, mail.code),
+          verifyEmail(started.body.data.challengeId, mail.code),
+        ]);
+        assert.deepEqual(attempts.map(({ status }) => status).sort(), [201, 400]);
+        const session = attempts.find(({ status }) => status === 201)!.body.data;
+        assert.equal(session.email, email);
+        assert.ok(session.token);
+        assert.ok((await prisma.user.findUnique({ where: { email } }))?.emailVerifiedAt);
       });
 
       it('T1-AUTH-02: logs in registered user and returns 200 with { token, id, email }', async () => {
@@ -218,16 +248,10 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
 
       it('T1-AUTH-03: trims whitespace around email during registration and login', async () => {
         const rawEmail = `  ${uniqueEmail('t1_trim')}  `;
-        const reg = await apiRequest<{
-          success: boolean;
-          data: { token: string; id: string; email: string };
-        }>('/api/auth/register', {
-          method: 'POST',
-          body: { email: rawEmail, password: 'Password123!' },
-        });
-        assert.equal(reg.status, 201);
-        createdUserIds.push(reg.body.data.id);
-        assert.equal(reg.body.data.email, rawEmail.trim());
+        const user = await registerTestUser('t1_trim', 'Password123!', rawEmail);
+        assert.equal(user.email, rawEmail.trim());
+        const login = await apiRequest('/api/auth/login', { method: 'POST', body: { email: rawEmail, password: user.password } });
+        assert.equal(login.status, 200);
       });
 
       it('T1-HABIT-04: GET /api/habits returns success envelope (not "sucess") with 8 Core Pillars', async () => {
@@ -247,6 +271,128 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
         const res = await apiRequest<{ status: string; message: string }>('/api/health');
         assert.equal(res.status, 200);
         assert.equal(res.body.status, 'success');
+      });
+    });
+
+    describe('Email verification', () => {
+      const resend = (challengeId: string) => apiRequest<{ data: Verification }>('/api/auth/resend-verification', {
+        method: 'POST',
+        body: { challengeId, language: 'es' },
+      });
+
+      it('reports ready after the email verification migration', async () => {
+        const ready = await apiRequest('/api/ready');
+        assert.equal(ready.status, 200);
+        assert.equal(ready.body.status, 'ready');
+      });
+
+      it('requires one code on the next login for existing accounts while preserving their sessions', async () => {
+        const user = await registerTestUser('t1_legacy');
+        await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: null } });
+        const oldSession = await apiRequest('/api/habits', { token: user.token });
+        assert.equal(oldSession.status, 200);
+
+        verificationMailbox.delete(user.email);
+        const attempt = (password: string) => apiRequest<{ code: string; data: Verification & Partial<Session> }>('/api/auth/login', {
+          method: 'POST',
+          body: { email: user.email, password },
+        });
+        assert.equal((await attempt('wrong password')).status, 401);
+        assert.ok(!verificationMailbox.has(user.email));
+
+        const pending = await attempt(user.password);
+        assert.equal(pending.status, 202);
+        assert.equal(pending.body.code, 'verification_required');
+        assert.equal(pending.body.data.token, undefined);
+        const verified = await verifyEmail(pending.body.data.challengeId, verificationMailbox.get(user.email)!.code);
+        assert.equal(verified.status, 200);
+        assert.equal(verified.body.data.id, user.id);
+        assert.equal((await attempt(user.password)).status, 200);
+      });
+
+      it('blocks repeated guesses, then replaces the expired code after the resend cooldown', async () => {
+        const email = uniqueEmail('verification_attempts');
+        const pending = (await startSignup(email, 'Password123!')).body.data;
+        const id = pending.challengeId;
+        const first = verificationMailbox.get(email)!.code;
+        const badCode = first === '000000' ? '000001' : '000000';
+        assert.equal((await resend(id)).status, 429);
+        assert.equal((await startSignup(email, 'Another password')).status, 429);
+        for (let i = 0; i < 5; i++) assert.equal((await verifyEmail(id, badCode)).status, 400);
+        assert.equal((await verifyEmail(id, first)).status, 400);
+
+        await prisma.emailVerificationChallenge.update({
+          where: { id },
+          data: { sentAt: new Date(Date.now() - 61_000) },
+        });
+        const resends = await Promise.all([resend(id), resend(id)]);
+        assert.deepEqual(resends.map(({ status }) => status).sort(), [202, 429]);
+        const replacement = verificationMailbox.get(email)!;
+        assert.notEqual(replacement.code, first);
+        assert.equal(replacement.language, 'es');
+        assert.equal((await verifyEmail(id, first)).status, 400);
+        await prisma.emailVerificationChallenge.update({ where: { id }, data: { expiresAt: new Date(0) } });
+        assert.equal((await verifyEmail(id, replacement.code)).status, 400);
+        assert.equal(await prisma.user.findUnique({ where: { email } }), null);
+      });
+
+      it('allows retry after SMTP failure without issuing a session', async () => {
+        const email = uniqueEmail('verification_delivery');
+        let pending: Verification;
+        failVerificationDelivery = true;
+        try {
+          const result = await startSignup(email, 'Password123!');
+          assert.equal(result.status, 202);
+          pending = result.body.data;
+          assert.equal(pending.deliveryFailed, true);
+        } finally {
+          failVerificationDelivery = false;
+        }
+        assert.equal(await prisma.user.findUnique({ where: { email } }), null);
+        assert.ok(!verificationMailbox.has(email));
+        await prisma.emailVerificationChallenge.update({
+          where: { id: pending.challengeId },
+          data: { sentAt: new Date(Date.now() - 61_000) },
+        });
+        assert.equal((await resend(pending.challengeId)).body.data.deliveryFailed, false);
+        assert.equal((await verifyEmail(pending.challengeId, verificationMailbox.get(email)!.code)).status, 201);
+      });
+
+      it('rejects a login verification challenge issued before a password reset', async () => {
+        const user = await registerTestUser('t1_legacy_reset');
+        await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: null } });
+        const login = await apiRequest<{ data: Verification }>('/api/auth/login', {
+          method: 'POST',
+          body: { email: user.email, password: user.password },
+        });
+        assert.equal(login.status, 202);
+        const reset = await requestResetFromMailbox('/api/auth/forgot-password', {
+          method: 'POST',
+          body: { email: user.email },
+        });
+        assert.equal((await apiRequest('/api/auth/reset-password', {
+          method: 'POST',
+          body: { token: reset.delivery.resetToken, password: 'NewPassword123!' },
+        })).status, 200);
+        assert.equal((await verifyEmail(login.body.data.challengeId, verificationMailbox.get(user.email)!.code)).status, 400);
+      });
+
+      it('includes the private action in branded HTML and plain-text email in both languages', () => {
+        const app = new URL('https://habits.example.com');
+        const expires = new Date('2026-11-20T20:00:00Z');
+        for (const language of ['en', 'es'] as const) {
+          const verification = renderAuthEmail('verification', app, '004271', expires, language);
+          assert.match(verification.html, new RegExp(`lang="${language}"`));
+          assert.match(verification.html, /Kraken Habits/);
+          assert.match(verification.html, /004271/);
+          assert.match(verification.text, /004271/);
+          assert.match(verification.subject, language === 'es' ? /verificación/ : /verification/);
+          const reset = renderAuthEmail('reset', app, 'test-token', expires, language);
+          const link = 'https://habits.example.com/reset-password#token=test-token';
+          assert.ok(reset.html.includes(`href="${link}"`));
+          assert.ok(reset.text.includes(link));
+          assert.match(reset.subject, language === 'es' ? /contraseña/ : /password/);
+        }
       });
     });
 
