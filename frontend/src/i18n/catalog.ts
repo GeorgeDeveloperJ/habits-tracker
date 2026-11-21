@@ -402,5 +402,13 @@ export const spanish = {
   "21-Day Neural Lock": "Hábito de 21 días",
   "Sustain a 21-day streak or 21 closed days": "Mantén una racha de 21 días o 21 días cerrados",
   "31-Day Finisher": "Ciclo 31 completo",
-  "Seal a complete 31-day sprint cycle": "Completa y cierra un ciclo entero de 31 días"
+  "Seal a complete 31-day sprint cycle": "Completa y cierra un ciclo entero de 31 días",
+  "Saved. Refresh to see the latest progress.": "Guardado. Actualiza para ver el progreso más reciente.",
+  "Save status is unknown. Refresh before retrying.": "No se pudo confirmar el guardado. Actualiza antes de volver a intentarlo.",
+  "Refresh status": "Actualizar estado",
+  "The change is not in the latest server state. Review it before retrying.": "El cambio no aparece en el servidor. Revísalo antes de volver a intentarlo.",
+  "Unable to refresh status. Check your connection and try again.": "No se pudo actualizar el estado. Revisa tu conexión e inténtalo de nuevo.",
+  "Your drafts were started on {0} UTC. Today is now {1} UTC.": "Iniciaste tus borradores el {0} UTC. Hoy es {1} UTC.",
+  "Use drafts for the new day": "Usar los borradores para el nuevo día",
+  "Unable to close the day.": "No se pudo cerrar el día."
 } as const;

@@ -1,0 +1,41 @@
+AntiFeatures:
+  TetheredNet:
+    en-US: The app uses a Kraken Habits server selected at build time. You cannot
+      change servers in the installed app.
+Categories:
+  - Habit Tracker
+License: MIT
+SourceCode: https://github.com/GeorgeDeveloperJ/habits-tracker
+IssueTracker: https://github.com/GeorgeDeveloperJ/habits-tracker/issues
+
+AutoName: Kraken Habits
+
+RepoType: git
+Repo: https://github.com/GeorgeDeveloperJ/habits-tracker.git
+
+Builds:
+  - versionName: 0.1.0
+    versionCode: 1000
+    commit: v0.1.0
+    subdir: frontend/src-tauri/gen/android
+    sudo:
+      - apt-get update
+      - apt-get install -y build-essential nodejs npm openjdk-21-jdk-headless rustup
+    output: app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+    build:
+      - rustup toolchain install 1.100.0 --profile minimal --target aarch64-linux-android
+      - export RUSTUP_TOOLCHAIN=1.100.0
+      - export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+      - export NDK_HOME=$$NDK$$
+      - export VITE_API_URL=https://habits-api.krakenserv.dev/api
+      - printf '#!/bin/sh\nexec gradlew-fdroid "$@"\n' > gradlew
+      - chmod +x gradlew
+      - cd ../../../..
+      - npm --prefix frontend ci --no-audit --no-fund
+      - bash packaging/android/build.sh --ci
+    ndk: 28.2.13676358
+
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: 0.1.0
+CurrentVersionCode: 1000

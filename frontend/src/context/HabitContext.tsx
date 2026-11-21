@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type {
   Cycle,
@@ -121,9 +121,34 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await loadAllData();
   }, [loadAllData]);
 
+  const progressRequest = useRef(0);
   const refreshProgress = useCallback(async () => {
+    if (!token) return null;
+    const request = ++progressRequest.current;
+    const result = await fetchCycleProgress('current');
+    if (request === progressRequest.current && useAuthStore.getState().token === token) {
+      setProgress(result);
+    }
+    return result;
+  }, [token]);
+
+  useEffect(() => {
     if (!token) return;
-    setProgress(await fetchCycleProgress('current'));
+    const refreshOnResume = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const request = ++progressRequest.current;
+      try {
+        const { categoriesData, cycleData, progressData } = await fetchAllHabitState();
+        if (request !== progressRequest.current || useAuthStore.getState().token !== token) return;
+        setCategories(categoriesData);
+        setActiveCycle(cycleData);
+        setProgress(progressData);
+      } catch {
+        // Keep the current screen and drafts if the connection is still unavailable.
+      }
+    };
+    document.addEventListener('visibilitychange', refreshOnResume);
+    return () => document.removeEventListener('visibilitychange', refreshOnResume);
   }, [token]);
 
   const startSprint = useCallback(
@@ -145,9 +170,8 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       logId?: string
     ) => {
       await createAction({ categoryId, description, targetDate, logId });
-      await refreshProgress();
     },
-    [refreshProgress]
+    []
   );
 
   const editGoal = useCallback(
@@ -156,17 +180,15 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       payload: { description?: string; isCompleted?: boolean }
     ) => {
       await updateAction(actionId, payload);
-      await refreshProgress();
     },
-    [refreshProgress]
+    []
   );
 
   const removeGoal = useCallback(
     async (actionId: string) => {
       await deleteAction(actionId);
-      await refreshProgress();
     },
-    [refreshProgress]
+    []
   );
 
   const effectiveCategories = useMemo(() => (token ? categories : []), [token, categories]);
@@ -207,9 +229,8 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         throw new Error('No active log found for today.');
       }
       await closeDailyLog(todayLog.id, true, forceClose);
-      await refreshProgress();
     },
-    [todayLog, refreshProgress]
+    [todayLog]
   );
 
   const value = useMemo<HabitContextType>(

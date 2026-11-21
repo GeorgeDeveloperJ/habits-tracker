@@ -19,7 +19,7 @@ export interface HabitContextType {
   loading: boolean;
   error: string | null;
   refreshCycle: () => Promise<void>;
-  refreshProgress: () => Promise<void>;
+  refreshProgress: () => Promise<CycleProgressResponse | null>;
   refreshAll: () => Promise<void>;
   startSprint: (initialGoals?: InitialGoalInput[]) => Promise<Cycle>;
   saveGoal: (

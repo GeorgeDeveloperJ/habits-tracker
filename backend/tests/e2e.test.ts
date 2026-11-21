@@ -176,6 +176,8 @@ describe('Proactive 31-Day Habit Tracker — 4-Tier E2E & Multi-Tenant Test Suit
     describe('Auth & Habit Categories (FIX-03a, FIX-04)', () => {
       it('allows password recovery preflight from configured frontends and rejects unrelated origins', async () => {
         const allowedOrigins = [
+          'https://tauri.localhost',
+          'tauri://localhost',
           'https://habits-tracker-git-dev-george-santana-s-projects.vercel.app',
           'https://habits.krakenserv.dev',
         ];

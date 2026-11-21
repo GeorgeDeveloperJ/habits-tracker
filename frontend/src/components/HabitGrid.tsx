@@ -1,6 +1,6 @@
 import { translateFeedback, translatePillarText } from '../i18n/messages';
 import { useLanguage } from '../i18n/useLanguage';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -21,7 +21,8 @@ import { CommandDialGlyph } from './icons/BrandMark';
 import { SprintFinisherSeal } from './icons/MilestoneBadges';
 import { useHabits } from '../context/useHabits';
 import { getPillarMeta } from '../lib/pillars';
-import type { PlannedAction } from '../services/api';
+import { runTrackerWrite } from '../context/trackerWrite';
+import type { CycleProgressResponse, PlannedAction } from '../services/api';
 import {
   ConcentricRing,
   DotMatrixRibbon,
@@ -48,19 +49,31 @@ const HabitGrid: React.FC = () => {
     removeGoal,
     closeToday,
     startSprint,
+    refreshProgress,
   } = useHabits();
 
+  const writing = useRef(false);
+  const [pendingWrite, setPendingWrite] = useState<{
+    confirmed: boolean;
+    cycleId: string | undefined;
+    matches: (snapshot: CycleProgressResponse) => boolean;
+    onSaved?: () => void;
+  } | null>(null);
+  const [refreshingStatus, setRefreshingStatus] = useState(false);
+  const [draftDay, setDraftDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [rollover, setRollover] = useState<string | null>(null);
   const [todayDrafts, setTodayDrafts] = useState<Record<string, string>>({});
   const [tomorrowDrafts, setTomorrowDrafts] = useState<Record<string, string>>({});
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
-  const [busyActionKey, setBusyActionKey] = useState<string | null>(null);
+  const [isWritingAction, setIsWritingAction] = useState(false);
   const [isClosingDay, setIsClosingDay] = useState(false);
   const [isRollingOver, setIsRollingOver] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string; values: (string | number)[] } | null>(
     null
   );
 
+  const writeControlsDisabled = Boolean(pendingWrite) || isWritingAction || isClosingDay || isRollingOver;
   const stats = progress?.stats;
   const currentDayNumber = stats?.currentDayNumber ?? 1;
   const effectiveSelectedDay = selectedDayNumber ?? currentDayNumber;
@@ -144,45 +157,94 @@ const HabitGrid: React.FC = () => {
     return map;
   }, [tomorrowLog]);
 
+  const writeAndRefresh = async (
+    write: () => Promise<unknown>,
+    matches: (snapshot: CycleProgressResponse) => boolean,
+    onSaved?: () => void,
+  ) => {
+    const result = await runTrackerWrite(write, async () => {
+      if (!(await refreshProgress())) throw new Error('Cycle unavailable');
+    });
+    if (result === 'saved') onSaved?.();
+    else setPendingWrite({ confirmed: result === 'saved-stale', cycleId: activeCycle?.id, matches, onSaved });
+  };
+
+  const refreshWriteStatus = async () => {
+    if (!pendingWrite || refreshingStatus) return;
+    setRefreshingStatus(true);
+    try {
+      const snapshot = await refreshProgress();
+      if (!snapshot) throw new Error('Cycle unavailable');
+      if (pendingWrite.confirmed || (pendingWrite.cycleId === snapshot.stats.cycleId && pendingWrite.matches(snapshot))) {
+        pendingWrite.onSaved?.();
+      } else {
+        showToast('error', 'The change is not in the latest server state. Review it before retrying.');
+      }
+      setPendingWrite(null);
+    } catch {
+      showToast('error', 'Unable to refresh status. Check your connection and try again.');
+    } finally {
+      setRefreshingStatus(false);
+    }
+  };
+
   const handleSaveInline = async (
     categoryId: string,
     targetDate: 'today' | 'tomorrow'
   ) => {
     const drafts = targetDate === 'today' ? todayDrafts : tomorrowDrafts;
     const text = (drafts[categoryId] ?? '').trim();
-    if (!text) return;
+    if (!text || pendingWrite || writing.current) return;
+    const utcNow = new Date();
+    const currentUtcDay = utcNow.toISOString().slice(0, 10);
+    if (draftDay !== currentUtcDay) {
+      setRollover(currentUtcDay);
+      return;
+    }
+    const targetLog = targetDate === 'today' ? todayLog : tomorrowLog;
+    const intendedDay = new Date(utcNow.getTime() + (targetDate === 'tomorrow' ? 86_400_000 : 0))
+      .toISOString().slice(0, 10);
 
-    const key = `${targetDate}-${categoryId}`;
     try {
-      setBusyActionKey(key);
-      await saveGoal(categoryId, text, targetDate);
-      if (targetDate === 'today') {
-        setTodayDrafts((prev) => ({ ...prev, [categoryId]: '' }));
-      } else {
-        setTomorrowDrafts((prev) => ({ ...prev, [categoryId]: '' }));
-      }
-      showToast(
-        'success',
-        targetDate === 'today' ? "Today's goal added." : "Tomorrow's pillar planned."
+      writing.current = true;
+      setIsWritingAction(true);
+      await writeAndRefresh(
+        () => saveGoal(categoryId, text, targetDate, targetLog?.date.startsWith(intendedDay) ? targetLog.id : undefined),
+        (snapshot) => snapshot.logs.some((log) => log.date.startsWith(intendedDay) &&
+          log.plans.some((plan) => plan.categoryId === categoryId && plan.description === text)),
+        () => {
+          const clearDraft = (drafts: Record<string, string>) =>
+            drafts[categoryId]?.trim() === text ? { ...drafts, [categoryId]: '' } : drafts;
+          (targetDate === 'today' ? setTodayDrafts : setTomorrowDrafts)(clearDraft);
+          showToast('success', targetDate === 'today' ? "Today's goal added." : "Tomorrow's pillar planned.");
+        },
       );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Unable to save goal.');
     } finally {
-      setBusyActionKey(null);
+      writing.current = false;
+      setIsWritingAction(false);
     }
   };
 
   const handleToggle = async (action: PlannedAction) => {
-    if (!canMutateDisplayedDay) return;
+    if (!canMutateDisplayedDay || pendingWrite || writing.current) return;
     try {
-      setBusyActionKey(`toggle-${action.id}`);
-      await editGoal(action.id, { isCompleted: !action.isCompleted });
+      writing.current = true;
+      setIsWritingAction(true);
+      await writeAndRefresh(
+        () => editGoal(action.id, { isCompleted: !action.isCompleted }),
+        (snapshot) => snapshot.logs.some((log) => log.plans.some(
+          (plan) => plan.id === action.id && plan.isCompleted === !action.isCompleted,
+        )),
+      );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Failed to update status.');
     } finally {
-      setBusyActionKey(null);
+      writing.current = false;
+      setIsWritingAction(false);
     }
   };
 
@@ -192,6 +254,7 @@ const HabitGrid: React.FC = () => {
   };
 
   const commitEdit = async (action: PlannedAction) => {
+    if (pendingWrite || writing.current) return;
     const trimmed = editingText.trim();
     if (!trimmed) {
       showToast('error', 'Goal description cannot be empty.');
@@ -202,52 +265,72 @@ const HabitGrid: React.FC = () => {
       return;
     }
     try {
-      setBusyActionKey(`edit-${action.id}`);
-      await editGoal(action.id, { description: trimmed });
-      setEditingActionId(null);
-      showToast('success', 'Goal updated.');
+      writing.current = true;
+      setIsWritingAction(true);
+      await writeAndRefresh(
+        () => editGoal(action.id, { description: trimmed }),
+        (snapshot) => snapshot.logs.some((log) => log.plans.some(
+          (plan) => plan.id === action.id && plan.description === trimmed,
+        )),
+        () => {
+          setEditingActionId(null);
+          showToast('success', 'Goal updated.');
+        },
+      );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Failed to edit goal.');
     } finally {
-      setBusyActionKey(null);
+      writing.current = false;
+      setIsWritingAction(false);
     }
   };
 
   const handleDelete = async (actionId: string) => {
+    if (pendingWrite || writing.current) return;
     try {
-      setBusyActionKey(`delete-${actionId}`);
-      await removeGoal(actionId);
-      showToast('success', 'Goal removed.');
+      writing.current = true;
+      setIsWritingAction(true);
+      await writeAndRefresh(
+        () => removeGoal(actionId),
+        (snapshot) => !snapshot.logs.some((log) => log.plans.some((plan) => plan.id === actionId)),
+        () => showToast('success', 'Goal removed.'),
+      );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Failed to remove goal.');
     } finally {
-      setBusyActionKey(null);
+      writing.current = false;
+      setIsWritingAction(false);
     }
   };
 
   const handleCloseDay = async () => {
+    if (!todayLog || pendingWrite || writing.current) return;
     try {
+      writing.current = true;
       setIsClosingDay(true);
-      await closeToday(false);
-      showToast(
-        'success',
-        'Day {0} closed & tomorrow locked!', String(currentDayNumber).padStart(2, '0')
+      await writeAndRefresh(
+        () => closeToday(false),
+        (snapshot) => snapshot.logs.some((log) => log.id === todayLog.id && log.isClosed),
+        () => showToast('success', 'Day {0} closed & tomorrow locked!', String(currentDayNumber).padStart(2, '0')),
       );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast(
         'error',
-        msg || 'Cannot close today until all 8 pillars are planned for tomorrow.'
+        msg || 'Unable to close the day.'
       );
     } finally {
+      writing.current = false;
       setIsClosingDay(false);
     }
   };
 
   const handleStartNextSprint = async () => {
+    if (pendingWrite || writing.current) return;
     try {
+      writing.current = true;
       setIsRollingOver(true);
       await startSprint();
       showToast('success', 'New 31-Day Sprint initialized!');
@@ -255,12 +338,30 @@ const HabitGrid: React.FC = () => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Failed to roll over sprint.');
     } finally {
+      writing.current = false;
       setIsRollingOver(false);
     }
   };
 
   return (
     <div className="space-y-4">
+      {pendingWrite && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border p-4">
+          <p>{t(pendingWrite.confirmed
+            ? 'Saved. Refresh to see the latest progress.'
+            : 'Save status is unknown. Refresh before retrying.')}</p>
+          <Button type="button" onClick={refreshWriteStatus} disabled={refreshingStatus}>{t('Refresh status')}</Button>
+        </div>
+      )}
+      {rollover && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border p-4">
+          <p>{t('Your drafts were started on {0} UTC. Today is now {1} UTC.', draftDay, rollover)}</p>
+          <Button type="button" onClick={() => {
+            setDraftDay(rollover);
+            setRollover(null);
+          }}>{t('Use drafts for the new day')}</Button>
+        </div>
+      )}
       {/* Editorial Command Center Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -344,7 +445,7 @@ const HabitGrid: React.FC = () => {
               type="button"
               size="lg"
               onClick={handleStartNextSprint}
-              disabled={isRollingOver}
+              disabled={writeControlsDisabled}
               className="bg-[#121212] text-[#F4F4F2] hover:bg-[#262624] dark:bg-complete dark:text-[#0D0914] dark:hover:bg-complete-hover"
             >
               {isRollingOver ? (
@@ -488,7 +589,7 @@ const HabitGrid: React.FC = () => {
             id="close-today-btn"
             type="button"
             variant={canCloseToday ? 'emerald' : 'secondary'}
-            disabled={!canCloseToday || isClosingDay}
+            disabled={!canCloseToday || writeControlsDisabled}
             onClick={handleCloseDay}
             className={`mt-5 w-full text-xs ${
               !canCloseToday
@@ -649,7 +750,7 @@ const HabitGrid: React.FC = () => {
                           type="button"
                           disabled={
                             !canMutateDisplayedDay ||
-                            busyActionKey === `toggle-${todayAction.id}`
+                            writeControlsDisabled
                           }
                           onClick={() => handleToggle(todayAction)}
                           aria-label={t("Toggle {0} completion", translatePillarText(language, category.name))}
@@ -729,7 +830,7 @@ const HabitGrid: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleDelete(todayAction.id)}
-                              disabled={busyActionKey === `delete-${todayAction.id}`}
+                              disabled={writeControlsDisabled}
                               aria-label={t("Delete {0} today goal", translatePillarText(language, category.name))}
                               className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
                             >
@@ -763,7 +864,7 @@ const HabitGrid: React.FC = () => {
                         <Button
                           type="submit"
                           size="sm"
-                          disabled={busyActionKey === `today-${category.id}`}
+                          disabled={writeControlsDisabled}
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </Button>
@@ -840,7 +941,7 @@ const HabitGrid: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDelete(tomorrowAction.id)}
-                            disabled={busyActionKey === `delete-${tomorrowAction.id}`}
+                            disabled={writeControlsDisabled}
                             aria-label={t("Delete {0} tomorrow goal", translatePillarText(language, category.name))}
                             className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
                           >
@@ -874,7 +975,7 @@ const HabitGrid: React.FC = () => {
                           type="submit"
                           size="sm"
                           variant="secondary"
-                          disabled={busyActionKey === `tomorrow-${category.id}`}
+                          disabled={writeControlsDisabled}
                         >
                           <Plus className="h-3.5 w-3.5 text-[#D98200] dark:text-amber" />
                         </Button>

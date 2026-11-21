@@ -1,0 +1,3 @@
+Kraken Habits helps you follow a 31-day habit cycle. Check in on your habits, plan tomorrow across eight pillars, and review your progress throughout the cycle.
+
+An account and an internet connection are required. Check-ins and plans are stored on the configured Kraken Habits server and are available on other devices signed in to the same account. The Android app does not let you change servers after installation.

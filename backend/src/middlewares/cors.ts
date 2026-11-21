@@ -2,6 +2,8 @@ import cors from 'cors';
 
 const DEFAULT_CORS_ORIGINS = [
     'http://localhost:5173',
+    'https://tauri.localhost',
+    'tauri://localhost',
     'https://habits.krakenserv.dev',
     'https://habits-tracker-flame.vercel.app',
     'https://habitstracker-web.vercel.app',
