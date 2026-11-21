@@ -49,7 +49,7 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      await requestPasswordReset(trimmed);
+      await requestPasswordReset(trimmed, language);
       setSubmitted(true);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;

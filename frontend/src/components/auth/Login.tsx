@@ -14,7 +14,8 @@ import {
   Sun,
 } from 'lucide-react';
 import { HorizonGlyph, KrakenHabitsMark } from '../icons/BrandMark';
-import apiClient from '../../api/client';
+import { signIn, type VerificationChallenge } from '../../services/api';
+import { EmailVerificationForm } from './EmailVerificationForm';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import {
@@ -168,6 +169,7 @@ export default function Login() {
   const { language, t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [challenge, setChallenge] = useState<VerificationChallenge | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -195,12 +197,12 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const response = await apiClient.post('/auth/login', {
-        email: email.trim(),
-        password,
-      });
-      if (response.data?.success && response.data?.data?.token) {
-        const { token: jwt, id, email: userEmail } = response.data.data;
+      const result = await signIn({ email: email.trim(), password, language });
+      if (result.code === 'verification_required') {
+        setChallenge(result.data);
+        setPassword('');
+      } else if (result.data?.token) {
+        const { token: jwt, id, email: userEmail } = result.data;
         login(jwt, { id, email: userEmail });
         navigate('/', { replace: true });
       } else {
@@ -223,121 +225,127 @@ export default function Login() {
           <AuthThemeToggleBar />
 
           <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5 sm:p-8">
-            <div className="mb-7">
-              <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                {t("Command Center Access")}
-              </p>
-              <h1 className="mt-2 text-4xl sm:text-[40px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
-                {t("Welcome")}{' '}
-                <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
-                  <Lock className="h-4 w-4 stroke-[2.4]" />
-                </span>{' '}
-                {t("back")}
-              </h1>
-              <p className="mt-2.5 text-sm text-[var(--text-secondary)]">
-                {t("Sign in to execute today's plan and lock tomorrow's 8 pillars.")}
-              </p>
-            </div>
+            {challenge ? (
+              <EmailVerificationForm challenge={challenge} onBack={() => setChallenge(null)} />
+            ) : (
+              <>
+                <div className="mb-7">
+                  <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                    {t("Command Center Access")}
+                  </p>
+                  <h1 className="mt-2 text-4xl sm:text-[40px] font-semibold tracking-[-0.03em] leading-[1.06] text-[var(--text-primary)]">
+                    {t("Welcome")}{' '}
+                    <span className="inline-flex align-middle items-center justify-center rounded-full bg-[#E6FA72] px-3 py-1 text-[#121212] dark:bg-orchid dark:text-[#0D0914]">
+                      <Lock className="h-4 w-4 stroke-[2.4]" />
+                    </span>{' '}
+                    {t("back")}
+                  </h1>
+                  <p className="mt-2.5 text-sm text-[var(--text-secondary)]">
+                    {t("Sign in to execute today's plan and lock tomorrow's 8 pillars.")}
+                  </p>
+                </div>
 
-            {resetSuccess && (
-              <div
-                role="status"
-                className="mb-5 flex items-center gap-2.5 rounded-[20px] border border-complete/50 bg-complete/20 px-4 py-3 text-xs font-semibold text-[#121212] dark:text-complete"
-              >
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span>{t("Password updated successfully. You can now sign in.")}</span>
-              </div>
-            )}
-
-            <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-              <div>
-                <label
-                  htmlFor="login-email"
-                  className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
-                >
-                  {t("Email address")}
-                </label>
-                <Input
-                  id="login-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <div>
-                <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <label
-                    htmlFor="login-password"
-                    className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+                {resetSuccess && (
+                  <div
+                    role="status"
+                    className="mb-5 flex items-center gap-2.5 rounded-[20px] border border-complete/50 bg-complete/20 px-4 py-3 text-xs font-semibold text-[#121212] dark:text-complete"
                   >
-                    {t("Password")}
-                  </label>
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>{t("Password updated successfully. You can now sign in.")}</span>
+                  </div>
+                )}
+
+                <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+                  <div>
+                    <label
+                      htmlFor="login-email"
+                      className="mb-1.5 block font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+                    >
+                      {t("Email address")}
+                    </label>
+                    <Input
+                      id="login-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label
+                        htmlFor="login-password"
+                        className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]"
+                      >
+                        {t("Password")}
+                      </label>
+                      <Link
+                        id="forgot-password-link"
+                        to="/forgot-password"
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-4 hover:bg-[var(--bg-sand)] dark:text-amber transition-colors"
+                      >
+                        <KeyRound className="h-3 w-3" />
+                        {t("Forgot password?")}
+                      </Link>
+                    </div>
+                    <Input
+                      id="login-password"
+                      name="password"
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={t("Enter your password")}
+                    />
+                  </div>
+
+                  {error && (
+                    <div
+                      role="alert"
+                      className="rounded-[18px] border border-[#DC2626]/30 bg-[#DC2626]/10 px-4 py-3 text-xs font-medium text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]"
+                    >
+                      {translateFeedback(language, error)}
+                    </div>
+                  )}
+
+                  <Button
+                    id="login-submit-btn"
+                    type="submit"
+                    disabled={loading}
+                    size="lg"
+                    className="w-full dark:bg-[#E8E2D8] dark:hover:bg-[#F3EEE6]"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t("Signing in...")}
+                      </>
+                    ) : (
+                      <>
+                        {t("Enter Command Center")}
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-5 text-sm">
+                  <span className="text-[var(--text-secondary)]">{t("New to Kraken Habits?")}</span>
                   <Link
-                    id="forgot-password-link"
-                    to="/forgot-password"
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-4 hover:bg-[var(--bg-sand)] dark:text-amber transition-colors"
+                    to="/register"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-sand)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-orchid dark:hover:text-[#0D0914] transition-colors"
                   >
-                    <KeyRound className="h-3 w-3" />
-                    {t("Forgot password?")}
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {t("Start a 31-day sprint")}
                   </Link>
                 </div>
-                <Input
-                  id="login-password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={t("Enter your password")}
-                />
-              </div>
-
-              {error && (
-                <div
-                  role="alert"
-                  className="rounded-[18px] border border-[#DC2626]/30 bg-[#DC2626]/10 px-4 py-3 text-xs font-medium text-[#DC2626] dark:border-[#F87171]/35 dark:bg-[#F87171]/15 dark:text-[#F87171]"
-                >
-                  {translateFeedback(language, error)}
-                </div>
-              )}
-
-              <Button
-                id="login-submit-btn"
-                type="submit"
-                disabled={loading}
-                size="lg"
-                className="w-full dark:bg-[#E8E2D8] dark:hover:bg-[#F3EEE6]"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t("Signing in...")}
-                  </>
-                ) : (
-                  <>
-                    {t("Enter Command Center")}
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            </form>
-
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-hairline)] pt-5 text-sm">
-              <span className="text-[var(--text-secondary)]">{t("New to Kraken Habits?")}</span>
-              <Link
-                to="/register"
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-sand)] px-3.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[#E6FA72] hover:text-[#121212] dark:hover:bg-orchid dark:hover:text-[#0D0914] transition-colors"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                {t("Start a 31-day sprint")}
-              </Link>
-            </div>
+              </>
+            )}
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono-tabular text-[11px] text-[var(--text-muted)]">

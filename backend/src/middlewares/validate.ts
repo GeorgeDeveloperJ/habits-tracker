@@ -17,7 +17,21 @@ export const validate = (schema: ZodType) => {
   };
 };
 
+const emailLanguage = z.enum(['en', 'es']).default('en');
+const verificationChallengeId = z.string().uuid('Invalid verification challenge.');
+
+export const verifyEmailSchema = z.object({
+  challengeId: verificationChallengeId,
+  code: z.string().trim().regex(/^\d{6}$/, 'Enter the six-digit verification code.'),
+});
+
+export const resendVerificationSchema = z.object({
+  challengeId: verificationChallengeId,
+  language: emailLanguage,
+});
+
 export const registerSchema = z.object({
+  language: emailLanguage,
   email: z
     .string({ error: issue => issue.input === undefined ? 'Email and password are required.' : undefined })
     .trim()
@@ -29,6 +43,7 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
+  language: emailLanguage,
   email: z
     .string({ error: issue => issue.input === undefined ? 'Email and password are required.' : undefined })
     .trim()
@@ -40,6 +55,7 @@ export const loginSchema = z.object({
 });
 
 export const forgotPasswordSchema = z.object({
+  language: emailLanguage,
   email: z
     .string({ error: issue => issue.input === undefined ? 'Email is required.' : undefined })
     .trim()
