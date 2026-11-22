@@ -1,0 +1,98 @@
+name: Android CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'frontend/**'
+      - 'packaging/android/**'
+      - '.github/workflows/android-ci.yml'
+      - '.github/actions/setup-android-tauri/**'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'frontend/**'
+      - 'packaging/android/**'
+      - '.github/workflows/android-ci.yml'
+      - '.github/actions/setup-android-tauri/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-checks:
+    name: Frontend checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.12'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci --no-audit --no-fund
+
+      - name: Lint frontend
+        run: npm --prefix frontend run lint
+
+      - name: Test frontend
+        run: npm --prefix frontend test
+
+      - name: Build frontend
+        run: npm --prefix frontend run build
+
+      - name: Verify Tauri and Cargo version sync
+        run: bash packaging/android/verify-version.sh
+
+  build-unsigned-apk:
+    name: Build unsigned ARM64 APK
+    needs: frontend-checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Android & Tauri toolchain
+        uses: ./.github/actions/setup-android-tauri
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci --no-audit --no-fund
+
+      - name: Build unsigned release APK
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://habits-api.krakenserv.dev/api' }}
+        run: bash packaging/android/build.sh --ci
+
+      - name: Verify and stage unsigned APK
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find frontend/src-tauri/gen/android/app/build/outputs/apk -type f -name '*-release-unsigned.apk')
+          if [[ "${#apks[@]}" -ne 1 ]]; then
+            echo "Expected exactly 1 unsigned release APK, found ${#apks[@]}: ${apks[*]:-none}" >&2
+            exit 1
+          fi
+          apk="${apks[0]}"
+          bash packaging/android/verify-apk.sh "$apk"
+          version="$(bash packaging/android/verify-version.sh)"
+          mkdir -p out/android
+          cp "$apk" "out/android/kraken-habits-${version}-arm64-unsigned.apk"
+
+      - name: Upload unsigned APK artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-unsigned-apk
+          path: out/android/kraken-habits-*-arm64-unsigned.apk
+          retention-days: 14
+          if-no-files-found: error

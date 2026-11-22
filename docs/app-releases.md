@@ -1,6 +1,6 @@
 # Android and Linux releases
 
-Kraken Habits uses the same React screens and HTTPS API on Android, Linux, and the web. For the official Android catalog, see [F-Droid submission](fdroid-submission.md). For self-hosted Android and Linux distribution, use the instructions below.
+Kraken Habits uses the same React screens and HTTPS API on Android, Linux, and the web. For automated GitHub Releases APK builds, see [Android APK CI/CD](android-cicd.md). For the official Android catalog, see [F-Droid submission](fdroid-submission.md). For self-hosted Android and Linux distribution, use the instructions below.
 
 ## Configure the API
 
