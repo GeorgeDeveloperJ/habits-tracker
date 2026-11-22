@@ -164,19 +164,21 @@ export const updateDay = async ( req: Request, res: Response ) => {
                 tomorrowStart.getTime() >= existingDay.cycle.endDate.getTime();
 
             if ( !isFinalDay ) {
-                const tomorrowLog = await prisma.dailyLog.findFirst({
-                    where: {
-                        userId,
-                        cycleId: existingDay.cycleId,
-                        date: {
-                            gte: tomorrowStart,
-                            lte: tomorrowEnd
-                        }
-                    },
-                    include: { plans: true }
-                });
+                const [tomorrowLog, totalCategoriesCount] = await Promise.all([
+                    prisma.dailyLog.findFirst({
+                        where: {
+                            userId,
+                            cycleId: existingDay.cycleId,
+                            date: {
+                                gte: tomorrowStart,
+                                lte: tomorrowEnd
+                            }
+                        },
+                        include: { plans: true }
+                    }),
+                    prisma.habitCategory.count()
+                ]);
 
-                const totalCategoriesCount = await prisma.habitCategory.count();
                 const requiredPillars = Math.min(8, totalCategoriesCount || 8);
 
                 const plannedPillarsCount = new Set(

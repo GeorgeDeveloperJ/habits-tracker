@@ -1,10 +1,12 @@
+import { lazy, Suspense } from 'react';
 import { translateFeedback } from '../i18n/messages';
 import { useLanguage } from '../i18n/useLanguage';
 import { Loader2, RefreshCw, Zap } from 'lucide-react';
 import { useHabits } from '../context/useHabits';
-import StartSprintScreen from '../components/StartSprintScreen';
 import HabitGrid from '../components/HabitGrid';
 import { Button } from '../components/ui/button';
+
+const StartSprintScreen = lazy(() => import('../components/StartSprintScreen'));
 
 export default function Tracker() {
   const { language, t } = useLanguage();
@@ -48,7 +50,11 @@ export default function Tracker() {
   }
 
   if (!activeCycle) {
-    return <StartSprintScreen />;
+    return (
+      <Suspense fallback={null}>
+        <StartSprintScreen />
+      </Suspense>
+    );
   }
 
   return <HabitGrid />;

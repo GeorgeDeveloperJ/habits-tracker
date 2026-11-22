@@ -17,7 +17,7 @@ export interface SegmentedBatteryProps {
   className?: string;
 }
 
-export const SegmentedBattery: React.FC<SegmentedBatteryProps> = ({
+export const SegmentedBattery = React.memo<SegmentedBatteryProps>(({
   total = 8,
   filled,
   label,
@@ -119,7 +119,7 @@ export const SegmentedBattery: React.FC<SegmentedBatteryProps> = ({
       </div>
     </div>
   );
-};
+});
 
 /* ============================================================================
  * 2. CapsuleBarChart — Vertical stadium bars with dashed ghost-tracks & dots
@@ -141,7 +141,7 @@ export interface CapsuleBarChartProps {
   className?: string;
 }
 
-export const CapsuleBarChart: React.FC<CapsuleBarChartProps> = ({
+export const CapsuleBarChart = React.memo<CapsuleBarChartProps>(({
   data,
   height = 196,
   showDots = true,
@@ -293,7 +293,7 @@ export const CapsuleBarChart: React.FC<CapsuleBarChartProps> = ({
       </div>
     </div>
   );
-};
+});
 
 /* ============================================================================
  * 3. ConcentricRing — Thick hardware SVG telemetry gauge
@@ -309,7 +309,7 @@ export interface ConcentricRingProps {
   className?: string;
 }
 
-export const ConcentricRing: React.FC<ConcentricRingProps> = ({
+export const ConcentricRing = React.memo<ConcentricRingProps>(({
   percentage,
   secondaryPercentage,
   size = 116,
@@ -454,7 +454,7 @@ export const ConcentricRing: React.FC<ConcentricRingProps> = ({
       )}
     </div>
   );
-};
+});
 
 /* ============================================================================
  * 4. DotMatrixRibbon — 31 tactile stadium capsule nodes
@@ -477,7 +477,7 @@ export interface DotMatrixRibbonProps {
   className?: string;
 }
 
-export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
+export const DotMatrixRibbon = React.memo<DotMatrixRibbonProps>(({
   days,
   onSelectDay,
   interactive = true,
@@ -571,7 +571,7 @@ export const DotMatrixRibbon: React.FC<DotMatrixRibbonProps> = ({
       </div>
     </div>
   );
-};
+});
 
 /* ============================================================================
  * 5. PillarCompassDiagram — 2D vector 8-pillar diagram + frosted glass pills
@@ -597,7 +597,17 @@ const COMPASS_SLOTS: CompassSlot[] = [
   { style: { top: '22%', left: '2%', transform: 'translateY(-50%)' }, isSide: true }, // Top-Left: Rest
 ];
 
-export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
+const COMPASS_AXES = Array.from({ length: 8 }, (_, idx) => {
+  const angle = ((idx * 45 - 90) * Math.PI) / 180;
+  return {
+    x1: 180 + Math.cos(angle) * 32,
+    y1: 130 + Math.sin(angle) * 32,
+    x2: 180 + Math.cos(angle) * 80,
+    y2: 130 + Math.sin(angle) * 80,
+  };
+});
+
+export const PillarCompassDiagram = React.memo<PillarCompassDiagramProps>(({
   activePillarIndex = 0,
   className,
 }) => {
@@ -646,28 +656,23 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
         />
 
         {/* 8 Radial Vector Axes */}
-        {Array.from({ length: 8 }, (_, idx) => {
-          const angle = ((idx * 45 - 90) * Math.PI) / 180;
-          const x1 = 180 + Math.cos(angle) * 32;
-          const y1 = 130 + Math.sin(angle) * 32;
-          const x2 = 180 + Math.cos(angle) * 80;
-          const y2 = 130 + Math.sin(angle) * 80;
+        {COMPASS_AXES.map((axis, idx) => {
           const isHighlight = idx === activePillarIndex;
 
           return (
             <g key={idx}>
               <line
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
+                x1={axis.x1}
+                y1={axis.y1}
+                x2={axis.x2}
+                y2={axis.y2}
                 stroke="currentColor"
                 strokeOpacity={isHighlight ? 0.55 : 0.16}
                 strokeWidth={isHighlight ? 1.75 : 1}
               />
               <circle
-                cx={x2}
-                cy={y2}
+                cx={axis.x2}
+                cy={axis.y2}
                 r={isHighlight ? 4.5 : 3}
                 className={
                   isHighlight
@@ -724,4 +729,4 @@ export const PillarCompassDiagram: React.FC<PillarCompassDiagramProps> = ({
       })}
     </div>
   );
-};
+});

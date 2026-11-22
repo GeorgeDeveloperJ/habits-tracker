@@ -5,7 +5,7 @@ export interface BrandIconProps {
 }
 
 export const KrakenHabitsMark: React.FC<BrandIconProps> = ({ className = 'h-5 w-5' }) => (
-  <img src="/kraken-habits.webp" alt="" className={`${className} object-contain`} />
+  <img src="/kraken-habits.webp" alt="" width={40} height={40} decoding="async" className={`${className} object-contain`} />
 );
 
 /**

@@ -1,6 +1,6 @@
 import { translateFeedback, translatePillarText } from '../i18n/messages';
 import { useLanguage } from '../i18n/useLanguage';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -53,6 +53,7 @@ const HabitGrid: React.FC = () => {
   } = useHabits();
 
   const writing = useRef(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pendingWrite, setPendingWrite] = useState<{
     confirmed: boolean;
     cycleId: string | undefined;
@@ -102,13 +103,30 @@ const HabitGrid: React.FC = () => {
   const isDay31Completed =
     currentDayNumber >= 31 && Boolean(todayLog?.isClosed);
 
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
   const showToast = (type: 'success' | 'error', message: string, ...values: (string | number)[]) => {
+    if (toastTimerRef.current !== null) {
+      clearTimeout(toastTimerRef.current);
+    }
     const notification = { type, message, values };
     setFeedback(notification);
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
+      toastTimerRef.current = null;
       setFeedback((prev) => (prev === notification ? null : prev));
     }, 3500);
   };
+
+  const handleSelectDay = useCallback(
+    (day: number) => setSelectedDayNumber(day === currentDayNumber ? null : day),
+    [currentDayNumber, setSelectedDayNumber]
+  );
 
   const daySeriesMap = useMemo(() => {
     const map = new Map<
@@ -493,9 +511,7 @@ const HabitGrid: React.FC = () => {
 
           <DotMatrixRibbon
             days={ribbonDays}
-            onSelectDay={(day) =>
-              setSelectedDayNumber(day === currentDayNumber ? null : day)
-            }
+            onSelectDay={handleSelectDay}
           />
         </div>
 

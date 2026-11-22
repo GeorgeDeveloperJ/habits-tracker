@@ -88,9 +88,13 @@ export const CORE_PILLARS: PillarMeta[] = [
   },
 ];
 
+const PILLAR_META_BY_NAME = new Map<string, PillarMeta>(
+  CORE_PILLARS.map((p) => [p.name.toLowerCase(), p])
+);
+
 export const getPillarMeta = (name: string): PillarMeta => {
   return (
-    CORE_PILLARS.find((p) => p.name.toLowerCase() === name.toLowerCase()) ?? {
+    PILLAR_META_BY_NAME.get(name.toLowerCase()) ?? {
       name,
       shortName: name,
       tagline: 'Daily proactive discipline',
