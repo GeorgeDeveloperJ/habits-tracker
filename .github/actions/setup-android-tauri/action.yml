@@ -5,7 +5,7 @@ inputs:
   node-version:
     description: Node.js version to install
     required: false
-    default: '22.12'
+    default: '24'
   java-version:
     description: JDK version to install
     required: false

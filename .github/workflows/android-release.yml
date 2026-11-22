@@ -39,7 +39,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '22.12'
+          node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -208,6 +208,7 @@ jobs:
               "$TAG"
               "$apk_path"
               "$sums_path"
+              --target "$GITHUB_SHA"
               --title "Kraken Habits $TAG"
               --notes-file "$notes_file"
               --generate-notes
