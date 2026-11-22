@@ -5,18 +5,19 @@ import { cn } from '../../lib/utils';
 /* ============================================================================
  * 1. SprintFinisherSeal — Day 31 Completion Trophy / Telemetry Seal
  * ============================================================================ */
-export const SprintFinisherSeal: React.FC<{ className?: string }> = ({
+const SPRINT_FINISHER_TICKS = Array.from({ length: 31 }, (_, i) => {
+  const angle = (i / 31) * Math.PI * 2 - Math.PI / 2;
+  return {
+    x1: 40 + Math.cos(angle) * 32,
+    y1: 40 + Math.sin(angle) * 32,
+    x2: 40 + Math.cos(angle) * 36.5,
+    y2: 40 + Math.sin(angle) * 36.5,
+  };
+});
+
+export const SprintFinisherSeal = React.memo<{ className?: string }>(({
   className = 'h-16 w-16',
 }) => {
-  const ticks = Array.from({ length: 31 }, (_, i) => {
-    const angle = (i / 31) * Math.PI * 2 - Math.PI / 2;
-    const x1 = 40 + Math.cos(angle) * 32;
-    const y1 = 40 + Math.sin(angle) * 32;
-    const x2 = 40 + Math.cos(angle) * 36.5;
-    const y2 = 40 + Math.sin(angle) * 36.5;
-    return { x1, y1, x2, y2 };
-  });
-
   return (
     <svg
       viewBox="0 0 80 80"
@@ -27,7 +28,7 @@ export const SprintFinisherSeal: React.FC<{ className?: string }> = ({
     >
       <circle cx="40" cy="40" r="38" fill="#121212" />
       <circle cx="40" cy="40" r="37" stroke="#5CE68A" strokeOpacity="0.45" strokeWidth="1.5" />
-      {ticks.map((t, idx) => (
+      {SPRINT_FINISHER_TICKS.map((t, idx) => (
         <line
           key={idx}
           x1={t.x1}
@@ -66,7 +67,7 @@ export const SprintFinisherSeal: React.FC<{ className?: string }> = ({
       </text>
     </svg>
   );
-};
+});
 
 /* ============================================================================
  * 2. Hardware Milestone Stamps (AnalyticsDashboard)
@@ -97,10 +98,10 @@ const ACCENT_CLASSES: Record<MilestoneDef['accent'], string> = {
   amber: 'bg-amber text-[#121212] border-amber',
 };
 
-export const SprintMilestonesCard: React.FC<{
+export const SprintMilestonesCard = React.memo<{
   metrics: MilestoneBadgeInput;
   className?: string;
-}> = ({ metrics, className }) => {
+}>(({ metrics, className }) => {
   const { t } = useLanguage();
 
   const badges: MilestoneDef[] = [
@@ -328,4 +329,4 @@ export const SprintMilestonesCard: React.FC<{
       </div>
     </div>
   );
-};
+});

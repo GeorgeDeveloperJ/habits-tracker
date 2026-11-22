@@ -10,6 +10,9 @@ test('selects Spanish for Spanish browser locales and defaults to English', () =
 });
 
 test('uses the selected language and interpolates values', () => {
+  assert.equal(createTranslator('en'), createTranslator('en'));
+  assert.equal(createTranslator('es'), createTranslator('es'));
+  assert.equal(createTranslator('en')('Day {0}'), 'Day {0}');
   assert.equal(createTranslator('en')('Day {0}', '07'), 'Day 07');
   assert.equal(createTranslator('es')('Day {0}', '07'), 'Día 07');
 });

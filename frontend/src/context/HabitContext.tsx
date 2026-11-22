@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type {
   Cycle,
   CycleProgressResponse,
+  DailyLog,
   HabitCategory,
   InitialGoalInput,
 } from '../services/api';
@@ -20,23 +21,32 @@ import {
 import { useAuthStore } from '../store/authStore';
 import { HabitContext, type HabitContextType } from './useHabits';
 
-const isSameUtcDay = (dateIso: string, offsetDays = 0): boolean => {
-  const target = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
-  const d = new Date(dateIso);
+const findLogForUtcOffset = (logs: DailyLog[] | undefined, offsetDays = 0): DailyLog | null => {
+  if (!logs?.length) return null;
+  const target = new Date(Date.now() + offsetDays * 86_400_000);
+  const targetYear = target.getUTCFullYear();
+  const targetMonth = target.getUTCMonth();
+  const targetDate = target.getUTCDate();
   return (
-    d.getUTCFullYear() === target.getUTCFullYear() &&
-    d.getUTCMonth() === target.getUTCMonth() &&
-    d.getUTCDate() === target.getUTCDate()
+    logs.find((log) => {
+      const d = new Date(log.date);
+      return (
+        d.getUTCFullYear() === targetYear &&
+        d.getUTCMonth() === targetMonth &&
+        d.getUTCDate() === targetDate
+      );
+    }) ?? null
   );
 };
 
-async function fetchAllHabitState() {
-  const [categoriesData, cycleData] = await Promise.all([
-    fetchHabitCategories(),
+async function fetchAllHabitState(cachedCategories?: HabitCategory[]) {
+  const [categoriesData, cycleData, initialProgressData] = await Promise.all([
+    cachedCategories?.length ? Promise.resolve(cachedCategories) : fetchHabitCategories(),
     fetchActiveCycle(),
+    fetchCycleProgress('current'),
   ]);
 
-  let progressData = cycleData ? await fetchCycleProgress('current') : null;
+  let progressData = cycleData ? initialProgressData : null;
 
   if (cycleData && !progressData?.todayLog) {
     try {
@@ -60,9 +70,14 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [loadedToken, setLoadedToken] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const categoriesRef = useRef<HabitCategory[]>([]);
 
-  const applyAllData = useCallback(async (activeToken: string) => {
-    const { categoriesData, cycleData, progressData } = await fetchAllHabitState();
+  useEffect(() => {
+    categoriesRef.current = token ? categories : [];
+  }, [token, categories]);
+
+  const applyAllData = useCallback(async (activeToken: string, cachedCategories?: HabitCategory[]) => {
+    const { categoriesData, cycleData, progressData } = await fetchAllHabitState(cachedCategories);
     setCategories(categoriesData);
     setActiveCycle(cycleData);
     setProgress(progressData);
@@ -138,7 +153,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (document.visibilityState !== 'visible') return;
       const request = ++progressRequest.current;
       try {
-        const { categoriesData, cycleData, progressData } = await fetchAllHabitState();
+        const { categoriesData, cycleData, progressData } = await fetchAllHabitState(categoriesRef.current);
         if (request !== progressRequest.current || useAuthStore.getState().token !== token) return;
         setCategories(categoriesData);
         setActiveCycle(cycleData);
@@ -155,7 +170,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     async (initialGoals?: InitialGoalInput[]) => {
       const cycle = await startNewCycle(initialGoals);
       if (token) {
-        await applyAllData(token);
+        await applyAllData(token, categoriesRef.current);
       }
       return cycle;
     },
@@ -201,15 +216,13 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const todayLog = useMemo(() => {
     if (!effectiveProgress) return null;
     if (effectiveProgress.todayLog) return effectiveProgress.todayLog;
-    if (!effectiveProgress.logs?.length) return null;
-    return effectiveProgress.logs.find((log) => isSameUtcDay(log.date, 0)) ?? null;
+    return findLogForUtcOffset(effectiveProgress.logs, 0);
   }, [effectiveProgress]);
 
   const tomorrowLog = useMemo(() => {
     if (!effectiveProgress) return null;
     if (effectiveProgress.tomorrowLog) return effectiveProgress.tomorrowLog;
-    if (!effectiveProgress.logs?.length) return null;
-    return effectiveProgress.logs.find((log) => isSameUtcDay(log.date, 1)) ?? null;
+    return findLogForUtcOffset(effectiveProgress.logs, 1);
   }, [effectiveProgress]);
 
   const selectedDayLog = useMemo(() => {

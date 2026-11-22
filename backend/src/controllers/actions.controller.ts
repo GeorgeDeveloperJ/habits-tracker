@@ -21,54 +21,73 @@ export const createAction = async ( req: Request, res: Response ) => {
             });
         }
 
-        // Verify category exists
-        const category = await prisma.habitCategory.findUnique({
-            where: { id: trimmedCategoryId }
-        }).catch(() => null);
-
-        if ( !category ) {
-            return res.status( 400 ).json({
-                success: false,
-                message: 'Invalid habit category'
-            });
-        }
-
         let targetLog = null;
+        let createdNewLog = false;
 
         if ( logId ) {
-            targetLog = await prisma.dailyLog.findFirst({
-                where: { id: logId, userId }
-            });
-            if ( !targetLog ) {
+            const [category, foundLog] = await Promise.all([
+                prisma.habitCategory.findUnique({
+                    where: { id: trimmedCategoryId }
+                }).catch(() => null),
+                prisma.dailyLog.findFirst({
+                    where: { id: logId, userId }
+                })
+            ]);
+
+            if ( !category ) {
+                return res.status( 400 ).json({
+                    success: false,
+                    message: 'Invalid habit category'
+                });
+            }
+
+            if ( !foundLog ) {
                 return res.status( 404 ).json({
                     success: false,
                     message: 'Daily log not found'
                 });
             }
+
+            targetLog = foundLog;
         } else {
-            const activeCycle = await prisma.cycle.findFirst({
-                where: {
-                    userId,
-                    isActive: true,
-                    endDate: { gte: new Date() }
-                },
-                orderBy: { createdAt: 'desc' }
-            });
+            const dateObj = resolveTargetDate(targetDate === 'tomorrow' ? 'tomorrow' : 'today');
+            const { startOfDay, endOfDay } = getUtcDayBounds(dateObj);
 
-            if ( activeCycle ) {
-                const dateObj = resolveTargetDate(targetDate === 'tomorrow' ? 'tomorrow' : 'today');
-                const { startOfDay, endOfDay } = getUtcDayBounds(dateObj);
-
-                targetLog = await prisma.dailyLog.findFirst({
+            const [category, activeCycle] = await Promise.all([
+                prisma.habitCategory.findUnique({
+                    where: { id: trimmedCategoryId }
+                }).catch(() => null),
+                prisma.cycle.findFirst({
                     where: {
                         userId,
-                        cycleId: activeCycle.id,
-                        date: {
-                            gte: startOfDay,
-                            lte: endOfDay
+                        isActive: true,
+                        endDate: { gte: new Date() }
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        logs: {
+                            where: {
+                                userId,
+                                date: {
+                                    gte: startOfDay,
+                                    lte: endOfDay
+                                }
+                            },
+                            take: 1
                         }
                     }
+                })
+            ]);
+
+            if ( !category ) {
+                return res.status( 400 ).json({
+                    success: false,
+                    message: 'Invalid habit category'
                 });
+            }
+
+            if ( activeCycle ) {
+                targetLog = activeCycle.logs[0] ?? null;
 
                 if ( !targetLog ) {
                     targetLog = await prisma.dailyLog.create({
@@ -79,6 +98,7 @@ export const createAction = async ( req: Request, res: Response ) => {
                             isClosed: false
                         }
                     });
+                    createdNewLog = true;
                 }
             } else {
                 targetLog = await prisma.dailyLog.findFirst({
@@ -102,13 +122,15 @@ export const createAction = async ( req: Request, res: Response ) => {
             });
         }
 
-        const existingAction = await prisma.plannedAction.findFirst({
-            where: {
-                userId,
-                logId: targetLog.id,
-                categoryId: trimmedCategoryId
-            }
-        });
+        const existingAction = createdNewLog
+            ? null
+            : await prisma.plannedAction.findFirst({
+                  where: {
+                      userId,
+                      logId: targetLog.id,
+                      categoryId: trimmedCategoryId
+                  }
+              });
 
         const action = existingAction
             ? await prisma.plannedAction.update({

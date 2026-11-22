@@ -26,18 +26,19 @@ import {
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 
-export function AuthShowcasePanel() {
+const AUTH_PREVIEW_DAYS = Array.from({ length: 31 }, (_, i) => {
+  const dayNumber = i + 1;
+  return {
+    dayNumber,
+    isClosed: dayNumber <= 6,
+    isToday: dayNumber === 7,
+    isTomorrow: dayNumber === 8,
+    isLogged: dayNumber <= 7,
+  };
+});
+
+export const AuthShowcasePanel = React.memo(function AuthShowcasePanel() {
   const { t } = useLanguage();
-  const previewDays = Array.from({ length: 31 }, (_, i) => {
-    const dayNumber = i + 1;
-    return {
-      dayNumber,
-      isClosed: dayNumber <= 6,
-      isToday: dayNumber === 7,
-      isTomorrow: dayNumber === 8,
-      isLogged: dayNumber <= 7,
-    };
-  });
 
   return (
     <div className="hidden lg:flex lg:w-[52%] flex-col gap-4 p-4 pr-2">
@@ -119,13 +120,13 @@ export function AuthShowcasePanel() {
             <p className="mb-2 font-mono-tabular text-[10px] uppercase tracking-[0.14em] text-white/50">
               {t("31-Day Capsule Strip")}
             </p>
-            <DotMatrixRibbon days={previewDays} interactive={false} compact />
+            <DotMatrixRibbon days={AUTH_PREVIEW_DAYS} interactive={false} compact />
           </div>
         </div>
       </div>
     </div>
   );
-}
+});
 
 export function AuthThemeToggleBar() {
   const { t } = useLanguage();

@@ -11,23 +11,38 @@ export const getCycleProgress = async ( req: express.Request, res: express.Respo
         }
 
         const paramCycleId = req.params.cycleId as string | undefined;
+        const logsInclude = {
+            where: { userId },
+            include: {
+                plans: {
+                    include: { category: true }
+                }
+            },
+            orderBy: { date: 'asc' as const }
+        };
 
-        const targetCycle =
+        const [targetCycle, categories] = await Promise.all([
             !paramCycleId || paramCycleId === 'current'
-                ? await prisma.cycle.findFirst({
+                ? prisma.cycle.findFirst({
                       where: {
                           userId,
                           isActive: true,
                           endDate: { gte: new Date() }
                       },
-                      orderBy: { createdAt: 'desc' }
+                      orderBy: { createdAt: 'desc' },
+                      include: { logs: logsInclude }
                   })
-                : await prisma.cycle.findFirst({
+                : prisma.cycle.findFirst({
                       where: {
                           id: paramCycleId,
                           userId
-                      }
-                  });
+                      },
+                      include: { logs: logsInclude }
+                  }),
+            prisma.habitCategory.findMany({
+                orderBy: { createdAt: 'asc' }
+            })
+        ]);
 
         if ( !targetCycle ) {
             const status = !paramCycleId || paramCycleId === 'current' ? 400 : 404;
@@ -40,81 +55,167 @@ export const getCycleProgress = async ( req: express.Request, res: express.Respo
             });
         }
 
-        const [logs, categories] = await Promise.all([
-            prisma.dailyLog.findMany({
-                where: {
-                    cycleId: targetCycle.id,
-                    userId
-                },
-                include: {
-                    plans: {
-                        include: { category: true }
-                    }
-                },
-                orderBy: { date: 'asc' }
-            }),
-            prisma.habitCategory.findMany({
-                orderBy: { createdAt: 'asc' }
-            })
-        ]);
+        const { logs } = targetCycle;
 
         const now = resolveTargetDate('today');
         const tomorrow = resolveTargetDate('tomorrow');
         const todayBounds = getUtcDayBounds(now);
         const tomorrowBounds = getUtcDayBounds(tomorrow);
+        const todayStartMs = todayBounds.startOfDay.getTime();
+        const todayEndMs = todayBounds.endOfDay.getTime();
+        const tomorrowStartMs = tomorrowBounds.startOfDay.getTime();
+        const tomorrowEndMs = tomorrowBounds.endOfDay.getTime();
+        const cycleStartMs = targetCycle.startDate.getTime();
+        const dayMs = 1000 * 60 * 60 * 24;
 
-        const isWithinBounds = (d: Date, bounds: { startOfDay: Date; endOfDay: Date }) =>
-            d.getTime() >= bounds.startOfDay.getTime() && d.getTime() <= bounds.endOfDay.getTime();
+        let todayLog: (typeof logs)[number] | null = null;
+        let tomorrowLog: (typeof logs)[number] | null = null;
 
-        const todayLog = logs.find((l) => isWithinBounds(l.date, todayBounds)) ?? null;
-        const tomorrowLog = logs.find((l) => isWithinBounds(l.date, tomorrowBounds)) ?? null;
-
-        const diffTime = Math.max(0, now.getTime() - targetCycle.startDate.getTime());
-        const currentDayNumber = Math.min(31, Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1));
+        const diffTime = Math.max(0, now.getTime() - cycleStartMs);
+        const currentDayNumber = Math.min(31, Math.max(1, Math.floor(diffTime / dayMs) + 1));
 
         let totalActions = 0;
         let completedActions = 0;
         let closedDays = 0;
+        let bestStreak = 0;
+        let runningStreak = 0;
 
-        logs.forEach((log) => {
+        const pillarAccumulators = new Map<string, {
+            plannedCount: number;
+            completedCount: number;
+            currentStreak: number;
+        }>();
+        const usedDayNumbers = new Set<number>();
+        const dailySeries: Array<{
+            dayNumber: number;
+            date: string;
+            logId: string;
+            isClosed: boolean;
+            isToday: boolean;
+            isTomorrow: boolean;
+            planned: number;
+            completed: number;
+            skipped: number;
+            completionRate: number;
+        }> = [];
+        const allPlanEntries: Array<{
+            updatedAtMs: number;
+            plan: (typeof logs)[number]['plans'][number];
+            logId: string;
+            logDateIso: string;
+        }> = [];
+
+        logs.forEach((log, index) => {
+            const logDateMs = log.date.getTime();
+            const isToday = logDateMs >= todayStartMs && logDateMs <= todayEndMs;
+            const isTomorrow = logDateMs >= tomorrowStartMs && logDateMs <= tomorrowEndMs;
+            const logDateIso = log.date.toISOString();
+
+            if (!todayLog && isToday) todayLog = log;
+            if (!tomorrowLog && isTomorrow) tomorrowLog = log;
             if (log.isClosed) closedDays++;
-            totalActions += log.plans.length;
-            completedActions += log.plans.filter((plan) => plan.isCompleted).length;
+
+            const planned = log.plans.length;
+            let completed = 0;
+            const logCategoryCounts = new Map<string, { planned: number; completed: number }>();
+
+            for (const p of log.plans) {
+                if (p.isCompleted) completed++;
+
+                let catCounts = logCategoryCounts.get(p.categoryId);
+                if (!catCounts) {
+                    catCounts = { planned: 0, completed: 0 };
+                    logCategoryCounts.set(p.categoryId, catCounts);
+                }
+                catCounts.planned++;
+                if (p.isCompleted) catCounts.completed++;
+
+                allPlanEntries.push({
+                    updatedAtMs: p.updatedAt.getTime(),
+                    plan: p,
+                    logId: log.id,
+                    logDateIso
+                });
+            }
+
+            totalActions += planned;
+            completedActions += completed;
+
+            if (logDateMs <= todayEndMs) {
+                const hasActivity = log.isClosed || completed > 0;
+                if (hasActivity) {
+                    runningStreak++;
+                    if (runningStreak > bestStreak) {
+                        bestStreak = runningStreak;
+                    }
+                } else {
+                    runningStreak = 0;
+                }
+            }
+
+            for (const [categoryId, counts] of logCategoryCounts) {
+                let acc = pillarAccumulators.get(categoryId);
+                if (!acc) {
+                    acc = { plannedCount: 0, completedCount: 0, currentStreak: 0 };
+                    pillarAccumulators.set(categoryId, acc);
+                }
+                acc.plannedCount += counts.planned;
+                acc.completedCount += counts.completed;
+
+                if (logDateMs <= todayEndMs) {
+                    if (counts.completed > 0) {
+                        acc.currentStreak++;
+                    } else if (counts.planned > 0) {
+                        acc.currentStreak = 0;
+                    }
+                }
+            }
+
+            const rawDayNum = Math.min(
+                31,
+                Math.max(1, Math.floor((logDateMs - cycleStartMs) / dayMs) + 1)
+            );
+            let dayNumber = rawDayNum;
+            if (usedDayNumbers.has(dayNumber)) {
+                dayNumber = Math.min(31, index + 1);
+            }
+            usedDayNumbers.add(dayNumber);
+
+            const skipped = Math.max(0, planned - completed);
+            const completionRate = planned > 0 ? Math.round((completed / planned) * 100) : 0;
+
+            dailySeries.push({
+                dayNumber,
+                date: logDateIso,
+                logId: log.id,
+                isClosed: log.isClosed,
+                isToday,
+                isTomorrow,
+                planned,
+                completed,
+                skipped,
+                completionRate
+            });
         });
 
+        const currentStreak = runningStreak;
         const skippedActions = Math.max(0, totalActions - completedActions);
         const overallCompletionRate = totalActions > 0
             ? Math.round((completedActions / totalActions) * 100)
             : 0;
 
-        // Calculate streaks across logged days (up to today)
-        const logsUpToToday = logs.filter((l) => l.date.getTime() <= todayBounds.endOfDay.getTime());
-        let currentStreak = 0;
-        let bestStreak = 0;
-        let runningStreak = 0;
+        const todayLogValue = todayLog as (typeof logs)[number] | null;
+        const tomorrowLogValue = tomorrowLog as (typeof logs)[number] | null;
 
-        for (const log of logsUpToToday) {
-            const hasActivity = log.isClosed || log.plans.some((p) => p.isCompleted);
-            if (hasActivity) {
-                runningStreak++;
-                if (runningStreak > bestStreak) {
-                    bestStreak = runningStreak;
-                }
-            } else {
-                runningStreak = 0;
-            }
-        }
-        currentStreak = runningStreak;
-
-        const todayPlannedCount = todayLog
-            ? new Set(todayLog.plans.map((p) => p.categoryId)).size
+        const todayPlannedCount = todayLogValue
+            ? new Set(todayLogValue.plans.map((p) => p.categoryId)).size
             : 0;
-        const todayCompletedCount = todayLog
-            ? todayLog.plans.filter((p) => p.isCompleted).length
+        const todayCompletedCount = todayLogValue
+            ? todayLogValue.plans.filter((p) => p.isCompleted).length
             : 0;
-        const tomorrowPlannedCount = tomorrowLog
+        const tomorrowPlannedCount = tomorrowLogValue
             ? new Set(
-                  tomorrowLog.plans
+                  tomorrowLogValue.plans
                       .filter((p) => typeof p.description === 'string' && p.description.trim().length > 0)
                       .map((p) => p.categoryId)
               ).size
@@ -122,7 +223,7 @@ export const getCycleProgress = async ( req: express.Request, res: express.Respo
 
         const requiredPillars = Math.min(8, categories.length || 8);
         const canCloseToday =
-            !todayLog?.isClosed &&
+            !todayLogValue?.isClosed &&
             (currentDayNumber >= 31 || tomorrowPlannedCount >= requiredPillars);
 
         const stats = {
@@ -148,25 +249,9 @@ export const getCycleProgress = async ( req: express.Request, res: express.Respo
 
         // Compute per-pillar statistics across all 8 core categories
         const pillarStats = categories.map((cat) => {
-            let plannedCount = 0;
-            let completedCount = 0;
-            let pillarRunningStreak = 0;
-
-            for (const log of logs) {
-                const catPlans = log.plans.filter((p) => p.categoryId === cat.id);
-                plannedCount += catPlans.length;
-                const catCompleted = catPlans.filter((p) => p.isCompleted).length;
-                completedCount += catCompleted;
-
-                if (log.date.getTime() <= todayBounds.endOfDay.getTime()) {
-                    if (catCompleted > 0) {
-                        pillarRunningStreak++;
-                    } else if (catPlans.length > 0) {
-                        pillarRunningStreak = 0;
-                    }
-                }
-            }
-
+            const acc = pillarAccumulators.get(cat.id);
+            const plannedCount = acc?.plannedCount ?? 0;
+            const completedCount = acc?.completedCount ?? 0;
             const skippedCount = Math.max(0, plannedCount - completedCount);
             const completionRate = plannedCount > 0
                 ? Math.round((completedCount / plannedCount) * 100)
@@ -180,67 +265,29 @@ export const getCycleProgress = async ( req: express.Request, res: express.Respo
                 completedCount,
                 skippedCount,
                 completionRate,
-                currentStreak: pillarRunningStreak
-            };
-        });
-
-        // Compute chronological daily series across logged days
-        const usedDayNumbers = new Set<number>();
-        const dailySeries = logs.map((log, index) => {
-            const rawDayNum = Math.min(
-                31,
-                Math.max(
-                    1,
-                    Math.floor((log.date.getTime() - targetCycle.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-                )
-            );
-            let dayNumber = rawDayNum;
-            if (usedDayNumbers.has(dayNumber)) {
-                dayNumber = Math.min(31, index + 1);
-            }
-            usedDayNumbers.add(dayNumber);
-
-            const planned = log.plans.length;
-            const completed = log.plans.filter((p) => p.isCompleted).length;
-            const skipped = Math.max(0, planned - completed);
-            const completionRate = planned > 0 ? Math.round((completed / planned) * 100) : 0;
-
-            return {
-                dayNumber,
-                date: log.date.toISOString(),
-                logId: log.id,
-                isClosed: log.isClosed,
-                isToday: isWithinBounds(log.date, todayBounds),
-                isTomorrow: isWithinBounds(log.date, tomorrowBounds),
-                planned,
-                completed,
-                skipped,
-                completionRate
+                currentStreak: acc?.currentStreak ?? 0
             };
         });
 
         // Recent activity feed
-        const allPlansWithMeta = logs.flatMap((log) =>
-            log.plans.map((p) => ({
-                id: p.id,
-                type: (p.isCompleted ? 'completed' : 'planned') as 'completed' | 'planned',
-                description: p.description,
-                categoryId: p.categoryId,
-                categoryName: p.category?.name ?? 'Habit',
-                isCompleted: p.isCompleted,
-                logId: log.id,
-                date: log.date.toISOString(),
-                timestamp: p.updatedAt.toISOString()
-            }))
-        );
-        allPlansWithMeta.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        const recentActivity = allPlansWithMeta.slice(0, 12);
+        allPlanEntries.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+        const recentActivity = allPlanEntries.slice(0, 12).map(({ plan: p, logId, logDateIso }) => ({
+            id: p.id,
+            type: (p.isCompleted ? 'completed' : 'planned') as 'completed' | 'planned',
+            description: p.description,
+            categoryId: p.categoryId,
+            categoryName: p.category?.name ?? 'Habit',
+            isCompleted: p.isCompleted,
+            logId,
+            date: logDateIso,
+            timestamp: p.updatedAt.toISOString()
+        }));
 
         const payload = {
             stats,
             logs,
-            todayLog,
-            tomorrowLog,
+            todayLog: todayLogValue,
+            tomorrowLog: tomorrowLogValue,
             pillarStats,
             dailySeries,
             recentActivity
