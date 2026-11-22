@@ -27,105 +27,37 @@ Retrieves the running status of the Habit Tracker backend service.
 
 ## 🔐 Authentication
 
-Authentication is managed via JSON Web Tokens (JWT). Users register with an email and password, and login to obtain a JWT token.
+Send the session token as `Authorization: Bearer <token>` on authenticated requests. Requests that send an email accept a `language` of `en` or `es` and default to English.
 
-### Register a User
-Creates a new user account with a unique email address and a securely hashed password.
+### Register and sign in
 
-*   **URL:** `/api/auth/register`
-*   **Method:** `POST`
-*   **URL Parameters:** None
-*   **Body Payload:**
-    ```json
-    {
-      "email": "user@example.com",
-      "password": "securepassword123"
-    }
-    ```
-*   **Success Response:** `201 Created`
-    ```json
-    {
-      "success": true,
-      "message": "User created succesfully",
-      "data": {
-        "id": "e7b049d9-7158-49c7-876a-3507c30932bb",
-        "email": "user@example.com"
-      }
-    }
-    ```
-    > [!NOTE]
-    > Note the spelling of the JSON message `'User created succesfully'` (with one 's' in the middle of successfully) returned by the controller.
-*   **Error Handling:**
-    *   `400 Bad Request`: Returned if email or password is missing, or if the email is already registered.
-        ```json
-        {
-          "success": false,
-          "message": "Email and password are required."
-        }
-        ```
-        or
-        ```json
-        {
-          "success": false,
-          "message": "User already exists."
-        }
-        ```
-    *   `500 Internal Server Error`: Returned when user creation or hashing fails.
-        ```json
-        {
-          "success": false,
-          "message": "Error registering"
-        }
-        ```
+Send `{ email, password, language? }` to `POST /api/auth/register` to start signup. A successful request returns `202 Accepted` with a verification challenge. The user is created after verification.
 
-### Login a User
-Authenticates a user with email and password, returning a JWT token for subsequent authenticated requests.
+Send the same fields to `POST /api/auth/login`. Verified accounts receive `200 OK` with `data: { token, id, email }`. For an unverified account with a valid password, the API sends a code and returns the same `202 Accepted` response as signup.
 
-*   **URL:** `/api/auth/login`
-*   **Method:** `POST`
-*   **URL Parameters:** None
-*   **Body Payload:**
-    ```json
-    {
-      "email": "user@example.com",
-      "password": "securepassword123"
-    }
-    ```
-*   **Success Response:** `200 OK`
-    ```json
-    {
-      "success": true,
-      "message": "Login succesful",
-      "data": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "email": "user@example.com"
-      }
-    }
-    ```
-    > [!NOTE]
-    > Note the spelling of the JSON message `'Login succesful'` (with one 'l' at the end and one 's' in the middle) returned by the controller.
-*   **Error Handling:**
-    *   `400 Bad Request`: Returned if email or password is missing.
-        ```json
-        {
-          "success": false,
-          "message": "Email and password are required."
-        }
-        ```
-    *   `401 Unauthorized`: Returned if the email does not exist or the password is incorrect.
-        ```json
-        {
-          "success": false,
-          "message": "Invalid credentials"
-        }
-        ```
-    *   `500 Internal Server Error`: Returned when authentication logic fails.
-        ```json
-        {
-          "success": false,
-          "message": "Error logging in"
-        }
-        ```
+```json
+{
+  "success": true,
+  "code": "verification_required",
+  "data": {
+    "challengeId": "e7b049d9-7158-49c7-876a-3507c30932bb",
+    "email": "user@example.com",
+    "deliveryFailed": false
+  }
+}
+```
+
+If `deliveryFailed` is true, offer to resend the code after the cooldown. Invalid credentials return `401`. Invalid signup inputs and duplicate accounts return `400`. Requests requiring email delivery return `503` when SMTP is unconfigured.
+
+### Verify an email address
+
+Send `{ challengeId, code }` to `POST /api/auth/verify-email`. Treat the six-digit code as a string to preserve leading zeroes. Codes expire after 10 minutes or five incorrect guesses. On success, the API returns `data: { token, id, email }` with `201 Created` for a new account or `200 OK` for an existing account. An invalid, expired, or used code returns `400`.
+
+Send `{ challengeId, language? }` to `POST /api/auth/resend-verification` to replace the code. The API returns the same `202 Accepted` response and enforces a 60-second cooldown per email. A rate-limited request returns `429` with a `Retry-After` header.
+
+### Recover a password
+
+Send `{ email, language? }` to `POST /api/auth/forgot-password`. A successful response is generic. A matching account receives a link by email. Send `{ token, password }` to `POST /api/auth/reset-password` to use the link and invalidate existing sessions. The user then signs in with the new password.
 
 ---
 

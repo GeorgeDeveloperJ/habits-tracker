@@ -1,4 +1,4 @@
-# ⚡ Proactive 31-Day Habit Tracker
+# ⚡ Kraken Habits
 
 ## 💻 Tech Stack
 
@@ -80,4 +80,8 @@ npm run dev
 The application will be available at `http://localhost:5173`.
 
 ## 📜 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](docs/LICENSE) file for details.
+
+## Installed apps
+
+Build and distribute the Android and Linux versions using the [app release guide](docs/app-releases.md).

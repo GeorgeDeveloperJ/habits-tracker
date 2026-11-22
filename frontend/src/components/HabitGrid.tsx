@@ -1,6 +1,6 @@
 import { translateFeedback, translatePillarText } from '../i18n/messages';
 import { useLanguage } from '../i18n/useLanguage';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -21,7 +21,8 @@ import { CommandDialGlyph } from './icons/BrandMark';
 import { SprintFinisherSeal } from './icons/MilestoneBadges';
 import { useHabits } from '../context/useHabits';
 import { getPillarMeta } from '../lib/pillars';
-import type { PlannedAction } from '../services/api';
+import { runTrackerWrite } from '../context/trackerWrite';
+import type { CycleProgressResponse, PlannedAction } from '../services/api';
 import {
   ConcentricRing,
   DotMatrixRibbon,
@@ -48,26 +49,44 @@ const HabitGrid: React.FC = () => {
     removeGoal,
     closeToday,
     startSprint,
+    refreshProgress,
   } = useHabits();
 
+  const writing = useRef(false);
+  const [pendingWrite, setPendingWrite] = useState<{
+    confirmed: boolean;
+    cycleId: string | undefined;
+    matches: (snapshot: CycleProgressResponse) => boolean;
+    onSaved?: () => void;
+  } | null>(null);
+  const [refreshingStatus, setRefreshingStatus] = useState(false);
+  const [draftDay, setDraftDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [rollover, setRollover] = useState<string | null>(null);
   const [todayDrafts, setTodayDrafts] = useState<Record<string, string>>({});
   const [tomorrowDrafts, setTomorrowDrafts] = useState<Record<string, string>>({});
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
-  const [busyActionKey, setBusyActionKey] = useState<string | null>(null);
+  const [isWritingAction, setIsWritingAction] = useState(false);
   const [isClosingDay, setIsClosingDay] = useState(false);
   const [isRollingOver, setIsRollingOver] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string; values: (string | number)[] } | null>(
     null
   );
 
+  const writeControlsDisabled = Boolean(pendingWrite) || isWritingAction || isClosingDay || isRollingOver;
   const stats = progress?.stats;
   const currentDayNumber = stats?.currentDayNumber ?? 1;
   const effectiveSelectedDay = selectedDayNumber ?? currentDayNumber;
   const isInspectingHistory =
     selectedDayNumber !== null && selectedDayNumber !== currentDayNumber;
+  const isInspectingTomorrow =
+    selectedDayNumber !== null && selectedDayNumber === currentDayNumber + 1;
+  const isInspectingFuture =
+    selectedDayNumber !== null && selectedDayNumber > currentDayNumber;
 
-  const displayedLog = isInspectingHistory ? selectedDayLog : todayLog;
+  const displayedLog = isInspectingHistory
+    ? (selectedDayLog ?? (isInspectingTomorrow ? tomorrowLog : null))
+    : todayLog;
   const isDisplayedDayClosed = Boolean(displayedLog?.isClosed);
   const canMutateDisplayedDay = !isInspectingHistory && Boolean(todayLog) && !todayLog?.isClosed;
 
@@ -138,45 +157,94 @@ const HabitGrid: React.FC = () => {
     return map;
   }, [tomorrowLog]);
 
+  const writeAndRefresh = async (
+    write: () => Promise<unknown>,
+    matches: (snapshot: CycleProgressResponse) => boolean,
+    onSaved?: () => void,
+  ) => {
+    const result = await runTrackerWrite(write, async () => {
+      if (!(await refreshProgress())) throw new Error('Cycle unavailable');
+    });
+    if (result === 'saved') onSaved?.();
+    else setPendingWrite({ confirmed: result === 'saved-stale', cycleId: activeCycle?.id, matches, onSaved });
+  };
+
+  const refreshWriteStatus = async () => {
+    if (!pendingWrite || refreshingStatus) return;
+    setRefreshingStatus(true);
+    try {
+      const snapshot = await refreshProgress();
+      if (!snapshot) throw new Error('Cycle unavailable');
+      if (pendingWrite.confirmed || (pendingWrite.cycleId === snapshot.stats.cycleId && pendingWrite.matches(snapshot))) {
+        pendingWrite.onSaved?.();
+      } else {
+        showToast('error', 'The change is not in the latest server state. Review it before retrying.');
+      }
+      setPendingWrite(null);
+    } catch {
+      showToast('error', 'Unable to refresh status. Check your connection and try again.');
+    } finally {
+      setRefreshingStatus(false);
+    }
+  };
+
   const handleSaveInline = async (
     categoryId: string,
     targetDate: 'today' | 'tomorrow'
   ) => {
     const drafts = targetDate === 'today' ? todayDrafts : tomorrowDrafts;
     const text = (drafts[categoryId] ?? '').trim();
-    if (!text) return;
+    if (!text || pendingWrite || writing.current) return;
+    const utcNow = new Date();
+    const currentUtcDay = utcNow.toISOString().slice(0, 10);
+    if (draftDay !== currentUtcDay) {
+      setRollover(currentUtcDay);
+      return;
+    }
+    const targetLog = targetDate === 'today' ? todayLog : tomorrowLog;
+    const intendedDay = new Date(utcNow.getTime() + (targetDate === 'tomorrow' ? 86_400_000 : 0))
+      .toISOString().slice(0, 10);
 
-    const key = `${targetDate}-${categoryId}`;
     try {
-      setBusyActionKey(key);
-      await saveGoal(categoryId, text, targetDate);
-      if (targetDate === 'today') {
-        setTodayDrafts((prev) => ({ ...prev, [categoryId]: '' }));
-      } else {
-        setTomorrowDrafts((prev) => ({ ...prev, [categoryId]: '' }));
-      }
-      showToast(
-        'success',
-        targetDate === 'today' ? "Today's goal added." : "Tomorrow's pillar planned."
+      writing.current = true;
+      setIsWritingAction(true);
+      await writeAndRefresh(
+        () => saveGoal(categoryId, text, targetDate, targetLog?.date.startsWith(intendedDay) ? targetLog.id : undefined),
+        (snapshot) => snapshot.logs.some((log) => log.date.startsWith(intendedDay) &&
+          log.plans.some((plan) => plan.categoryId === categoryId && plan.description === text)),
+        () => {
+          const clearDraft = (drafts: Record<string, string>) =>
+            drafts[categoryId]?.trim() === text ? { ...drafts, [categoryId]: '' } : drafts;
+          (targetDate === 'today' ? setTodayDrafts : setTomorrowDrafts)(clearDraft);
+          showToast('success', targetDate === 'today' ? "Today's goal added." : "Tomorrow's pillar planned.");
+        },
       );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Unable to save goal.');
     } finally {
-      setBusyActionKey(null);
+      writing.current = false;
+      setIsWritingAction(false);
     }
   };
 
   const handleToggle = async (action: PlannedAction) => {
-    if (!canMutateDisplayedDay) return;
+    if (!canMutateDisplayedDay || pendingWrite || writing.current) return;
     try {
-      setBusyActionKey(`toggle-${action.id}`);
-      await editGoal(action.id, { isCompleted: !action.isCompleted });
+      writing.current = true;
+      setIsWritingAction(true);
+      await writeAndRefresh(
+        () => editGoal(action.id, { isCompleted: !action.isCompleted }),
+        (snapshot) => snapshot.logs.some((log) => log.plans.some(
+          (plan) => plan.id === action.id && plan.isCompleted === !action.isCompleted,
+        )),
+      );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Failed to update status.');
     } finally {
-      setBusyActionKey(null);
+      writing.current = false;
+      setIsWritingAction(false);
     }
   };
 
@@ -186,6 +254,7 @@ const HabitGrid: React.FC = () => {
   };
 
   const commitEdit = async (action: PlannedAction) => {
+    if (pendingWrite || writing.current) return;
     const trimmed = editingText.trim();
     if (!trimmed) {
       showToast('error', 'Goal description cannot be empty.');
@@ -196,52 +265,72 @@ const HabitGrid: React.FC = () => {
       return;
     }
     try {
-      setBusyActionKey(`edit-${action.id}`);
-      await editGoal(action.id, { description: trimmed });
-      setEditingActionId(null);
-      showToast('success', 'Goal updated.');
+      writing.current = true;
+      setIsWritingAction(true);
+      await writeAndRefresh(
+        () => editGoal(action.id, { description: trimmed }),
+        (snapshot) => snapshot.logs.some((log) => log.plans.some(
+          (plan) => plan.id === action.id && plan.description === trimmed,
+        )),
+        () => {
+          setEditingActionId(null);
+          showToast('success', 'Goal updated.');
+        },
+      );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Failed to edit goal.');
     } finally {
-      setBusyActionKey(null);
+      writing.current = false;
+      setIsWritingAction(false);
     }
   };
 
   const handleDelete = async (actionId: string) => {
+    if (pendingWrite || writing.current) return;
     try {
-      setBusyActionKey(`delete-${actionId}`);
-      await removeGoal(actionId);
-      showToast('success', 'Goal removed.');
+      writing.current = true;
+      setIsWritingAction(true);
+      await writeAndRefresh(
+        () => removeGoal(actionId),
+        (snapshot) => !snapshot.logs.some((log) => log.plans.some((plan) => plan.id === actionId)),
+        () => showToast('success', 'Goal removed.'),
+      );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Failed to remove goal.');
     } finally {
-      setBusyActionKey(null);
+      writing.current = false;
+      setIsWritingAction(false);
     }
   };
 
   const handleCloseDay = async () => {
+    if (!todayLog || pendingWrite || writing.current) return;
     try {
+      writing.current = true;
       setIsClosingDay(true);
-      await closeToday(false);
-      showToast(
-        'success',
-        'Day {0} closed & tomorrow locked!', String(currentDayNumber).padStart(2, '0')
+      await writeAndRefresh(
+        () => closeToday(false),
+        (snapshot) => snapshot.logs.some((log) => log.id === todayLog.id && log.isClosed),
+        () => showToast('success', 'Day {0} closed & tomorrow locked!', String(currentDayNumber).padStart(2, '0')),
       );
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast(
         'error',
-        msg || 'Cannot close today until all 8 pillars are planned for tomorrow.'
+        msg || 'Unable to close the day.'
       );
     } finally {
+      writing.current = false;
       setIsClosingDay(false);
     }
   };
 
   const handleStartNextSprint = async () => {
+    if (pendingWrite || writing.current) return;
     try {
+      writing.current = true;
       setIsRollingOver(true);
       await startSprint();
       showToast('success', 'New 31-Day Sprint initialized!');
@@ -249,12 +338,30 @@ const HabitGrid: React.FC = () => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       showToast('error', msg || 'Failed to roll over sprint.');
     } finally {
+      writing.current = false;
       setIsRollingOver(false);
     }
   };
 
   return (
     <div className="space-y-4">
+      {pendingWrite && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border p-4">
+          <p>{t(pendingWrite.confirmed
+            ? 'Saved. Refresh to see the latest progress.'
+            : 'Save status is unknown. Refresh before retrying.')}</p>
+          <Button type="button" onClick={refreshWriteStatus} disabled={refreshingStatus}>{t('Refresh status')}</Button>
+        </div>
+      )}
+      {rollover && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border p-4">
+          <p>{t('Your drafts were started on {0} UTC. Today is now {1} UTC.', draftDay, rollover)}</p>
+          <Button type="button" onClick={() => {
+            setDraftDay(rollover);
+            setRollover(null);
+          }}>{t('Use drafts for the new day')}</Button>
+        </div>
+      )}
       {/* Editorial Command Center Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -338,7 +445,7 @@ const HabitGrid: React.FC = () => {
               type="button"
               size="lg"
               onClick={handleStartNextSprint}
-              disabled={isRollingOver}
+              disabled={writeControlsDisabled}
               className="bg-[#121212] text-[#F4F4F2] hover:bg-[#262624] dark:bg-complete dark:text-[#0D0914] dark:hover:bg-complete-hover"
             >
               {isRollingOver ? (
@@ -358,9 +465,9 @@ const HabitGrid: React.FC = () => {
       )}
 
       {/* Asymmetrical 12-Column Bento Telemetry Header */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        {/* 1. 31-Day DotMatrixRibbon Day Inspector (lg:col-span-6) */}
-        <div className="lg:col-span-6 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12">
+        {/* 1. 31-Day DotMatrixRibbon Day Inspector (xl:col-span-5) */}
+        <div className="min-w-0 md:col-span-2 xl:col-span-5 flex flex-col justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -392,8 +499,8 @@ const HabitGrid: React.FC = () => {
           />
         </div>
 
-        {/* 2. ConcentricRing Completion Telemetry (lg:col-span-2) */}
-        <div className="lg:col-span-2 flex flex-col items-center justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-sand)] p-5 text-center">
+        {/* 2. ConcentricRing Completion Telemetry (xl:col-span-3) */}
+        <div className="min-w-0 xl:col-span-3 flex flex-col items-center justify-between rounded-[28px] border border-[var(--border-hairline)] bg-[var(--bg-sand)] p-5 text-center">
           <div className="w-full text-left">
             <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
               {t("Adherence")}
@@ -410,29 +517,29 @@ const HabitGrid: React.FC = () => {
             />
           </div>
 
-          <div className="grid w-full grid-cols-2 gap-2 border-t border-[var(--border-hairline)] pt-3">
-            <div>
+          <div className="grid w-full grid-cols-2 gap-1.5 border-t border-[var(--border-hairline)] pt-3">
+            <div className="min-w-0">
               <p className="font-mono-tabular text-sm font-bold text-[var(--text-primary)]">
                 {stats?.daysLogged ?? 0}
               </p>
-              <p className="font-mono-tabular text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+              <p className="truncate font-mono-tabular text-[9px] sm:text-[10px] uppercase tracking-[0.06em] text-[var(--text-muted)]">
                 {t("Logged")}
               </p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="inline-flex items-center justify-center gap-0.5 font-mono-tabular text-sm font-bold text-[#D98200] dark:text-amber">
                 <Flame className="h-3.5 w-3.5" />
                 {stats?.currentStreak ?? 0}d
               </p>
-              <p className="font-mono-tabular text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+              <p className="truncate font-mono-tabular text-[9px] sm:text-[10px] uppercase tracking-[0.06em] text-[var(--text-muted)]">
                 {t("Streak")}
               </p>
             </div>
           </div>
         </div>
 
-        {/* 3. High-Contrast Close Today Gatekeeper Card (lg:col-span-4) */}
-        <div className="lg:col-span-4 flex flex-col justify-between rounded-[28px] bg-[#121212] p-6 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
+        {/* 3. High-Contrast Close Today Gatekeeper Card (xl:col-span-4) */}
+        <div className="min-w-0 xl:col-span-4 flex flex-col justify-between rounded-[28px] bg-[#121212] p-5 sm:p-6 text-[#F4F4F2] dark:border dark:border-white/[0.06] dark:bg-[#171224] dark:text-[#F7F5FF]">
           <div>
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
@@ -482,7 +589,7 @@ const HabitGrid: React.FC = () => {
             id="close-today-btn"
             type="button"
             variant={canCloseToday ? 'emerald' : 'secondary'}
-            disabled={!canCloseToday || isClosingDay}
+            disabled={!canCloseToday || writeControlsDisabled}
             onClick={handleCloseDay}
             className={`mt-5 w-full text-xs ${
               !canCloseToday
@@ -519,11 +626,19 @@ const HabitGrid: React.FC = () => {
             </div>
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">
-                {t('Inspecting Day {0} (Read-Only History)', String(selectedDayNumber).padStart(2, '0'))}
+                {isInspectingTomorrow
+                  ? t("Inspecting Day {0} (Tomorrow's Plan)", String(selectedDayNumber).padStart(2, '0'))
+                  : isInspectingFuture
+                  ? t("Inspecting Day {0} (Upcoming Day)", String(selectedDayNumber).padStart(2, '0'))
+                  : t('Inspecting Day {0} (Read-Only History)', String(selectedDayNumber).padStart(2, '0'))}
               </p>
               <p className="font-mono-tabular text-xs text-[var(--text-secondary)]">
                 {displayedLog
-                  ? `${displayedLog.plans.filter((p) => p.isCompleted).length} / ${displayedLog.plans.length} actions completed${displayedLog.isClosed ? t(" · Day Closed") : ''}`
+                  ? isInspectingFuture
+                    ? t("{0} / {1} pillars planned", displayedLog.plans.length, totalPillars)
+                    : `${t("{0} / {1} actions completed", displayedLog.plans.filter((p) => p.isCompleted).length, displayedLog.plans.length)}${displayedLog.isClosed ? t(" · Day Closed") : ''}`
+                  : isInspectingFuture
+                  ? t("No actions planned for this day yet.")
                   : t("No actions were logged on this day.")}
               </p>
             </div>
@@ -545,24 +660,35 @@ const HabitGrid: React.FC = () => {
         {/* Matrix Column Headers (Desktop) */}
         <div className="hidden gap-4 border-b border-[var(--border-hairline)] bg-[var(--bg-sand)]/70 px-6 py-3.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:grid lg:grid-cols-12">
           <div className="col-span-3">{t("8 Core Pillars")}</div>
-          <div className="col-span-5 flex items-center justify-between">
+          <div className={`${isInspectingHistory ? 'col-span-9' : 'col-span-5'} flex items-center justify-between gap-2`}>
             <span>
-              {isInspectingHistory
+              {isInspectingTomorrow
+                ? t("Day {0} Plan (Tomorrow · Read-Only)", String(selectedDayNumber).padStart(2, '0'))
+                : isInspectingFuture
+                ? t("Day {0} Schedule (Read-Only)", String(selectedDayNumber).padStart(2, '0'))
+                : isInspectingHistory
                 ? t("Day {0} Execution (Read-Only)", String(selectedDayNumber).padStart(2, '0'))
                 : t("Today's Execution")}
             </span>
-            {isDisplayedDayClosed && (
+            {isDisplayedDayClosed ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-complete px-2.5 py-0.5 text-[10px] font-bold text-[#121212]">
                 <Lock className="h-3 w-3" /> {t("Locked")}
               </span>
-            )}
+            ) : isInspectingHistory ? (
+              <span className="rounded-full bg-[var(--bg-card)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
+                {displayedLog?.plans.length ?? 0}/{totalPillars}{' '}
+                {isInspectingFuture ? t("Planned") : t("Logged")}
+              </span>
+            ) : null}
           </div>
-          <div className="col-span-4 flex items-center justify-between">
-            <span>{t("Tomorrow's Proactive Plan")}</span>
-            <span className="rounded-full bg-[var(--bg-card)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
-              {tomorrowPlannedCount}/{totalPillars} {t("Planned")}
-            </span>
-          </div>
+          {!isInspectingHistory && (
+            <div className="col-span-4 flex items-center justify-between">
+              <span>{t("Tomorrow's Proactive Plan")}</span>
+              <span className="rounded-full bg-[var(--bg-card)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--text-primary)] border border-[var(--border-hairline)]">
+                {tomorrowPlannedCount}/{totalPillars} {t("Planned")}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="divide-y divide-[var(--border-hairline)]">
@@ -602,9 +728,11 @@ const HabitGrid: React.FC = () => {
                 </div>
 
                 {/* Zone 2: Today's Execution (or Inspected Day) */}
-                <div className="lg:col-span-5">
+                <div className={isInspectingHistory ? 'lg:col-span-9' : 'lg:col-span-5'}>
                   <div className="mb-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:hidden">
-                    {isInspectingHistory
+                    {isInspectingTomorrow
+                      ? t("Day {0} Plan (Tomorrow)", String(selectedDayNumber).padStart(2, '0'))
+                      : isInspectingHistory
                       ? t("Day {0} Log", String(selectedDayNumber).padStart(2, '0'))
                       : t("Today's Execution")}
                   </div>
@@ -622,7 +750,7 @@ const HabitGrid: React.FC = () => {
                           type="button"
                           disabled={
                             !canMutateDisplayedDay ||
-                            busyActionKey === `toggle-${todayAction.id}`
+                            writeControlsDisabled
                           }
                           onClick={() => handleToggle(todayAction)}
                           aria-label={t("Toggle {0} completion", translatePillarText(language, category.name))}
@@ -658,7 +786,7 @@ const HabitGrid: React.FC = () => {
                             type="button"
                             disabled={!canMutateDisplayedDay}
                             onClick={() => canMutateDisplayedDay && beginEdit(todayAction)}
-                            className={`truncate text-left text-sm font-medium ${
+                            className={`line-clamp-2 break-words text-left text-sm font-medium ${
                               todayAction.isCompleted
                                 ? 'text-[var(--text-secondary)] line-through'
                                 : 'text-[var(--text-primary)]'
@@ -672,26 +800,44 @@ const HabitGrid: React.FC = () => {
                         )}
                       </div>
 
-                      {canMutateDisplayedDay && !isEditingToday && (
-                        <div className="flex shrink-0 items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => beginEdit(todayAction)}
-                            aria-label={t("Edit {0} today goal", translatePillarText(language, category.name))}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(todayAction.id)}
-                            disabled={busyActionKey === `delete-${todayAction.id}`}
-                            aria-label={t("Delete {0} today goal", translatePillarText(language, category.name))}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                      {isInspectingHistory ? (
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-0.5 font-mono-tabular text-[9px] font-bold uppercase tracking-[0.08em] ${
+                            todayAction.isCompleted
+                              ? 'bg-complete text-[#121212]'
+                              : isInspectingFuture
+                              ? 'bg-amber/25 text-[#9A5B00] dark:bg-amber/20 dark:text-amber'
+                              : 'border border-[var(--border-hairline)] bg-[var(--bg-card)] text-[var(--text-muted)]'
+                          }`}
+                        >
+                          {todayAction.isCompleted
+                            ? t("Done")
+                            : isInspectingFuture
+                            ? t("Planned")
+                            : t("Skipped")}
+                        </span>
+                      ) : (
+                        canMutateDisplayedDay && !isEditingToday && (
+                          <div className="flex shrink-0 items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => beginEdit(todayAction)}
+                              aria-label={t("Edit {0} today goal", translatePillarText(language, category.name))}
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(todayAction.id)}
+                              disabled={writeControlsDisabled}
+                              aria-label={t("Delete {0} today goal", translatePillarText(language, category.name))}
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )
                       )}
                     </div>
                   ) : canMutateDisplayedDay ? (
@@ -718,7 +864,7 @@ const HabitGrid: React.FC = () => {
                         <Button
                           type="submit"
                           size="sm"
-                          disabled={busyActionKey === `today-${category.id}`}
+                          disabled={writeControlsDisabled}
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </Button>
@@ -726,14 +872,17 @@ const HabitGrid: React.FC = () => {
                     </form>
                   ) : (
                     <div className="rounded-full border border-dashed border-[var(--border-strong)] bg-hatch-fine px-4 py-2 text-xs italic text-[var(--text-muted)]">
-                      {isInspectingHistory
+                      {isInspectingFuture
+                        ? t("No goal planned for this pillar yet")
+                        : isInspectingHistory
                         ? t("No goal recorded for this pillar")
                         : t("Day is closed")}
                     </div>
                   )}
                 </div>
 
-                {/* Zone 3: Tomorrow's Proactive Plan */}
+                {/* Zone 3: Tomorrow's Proactive Plan (Only shown when viewing Today) */}
+                {!isInspectingHistory && (
                 <div className="lg:col-span-4">
                   <div className="mb-1.5 font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)] lg:hidden">
                     {t("Tomorrow's Proactive Plan")}
@@ -768,7 +917,7 @@ const HabitGrid: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => beginEdit(tomorrowAction)}
-                            className="truncate text-left text-sm font-medium text-[var(--text-primary)] hover:opacity-80 cursor-text"
+                            className="line-clamp-2 break-words text-left text-sm font-medium text-[var(--text-primary)] hover:opacity-80 cursor-text"
                             title={t("Click to edit tomorrow's plan")}
                           >
                             {tomorrowAction.description}
@@ -792,7 +941,7 @@ const HabitGrid: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDelete(tomorrowAction.id)}
-                            disabled={busyActionKey === `delete-${tomorrowAction.id}`}
+                            disabled={writeControlsDisabled}
                             aria-label={t("Delete {0} tomorrow goal", translatePillarText(language, category.name))}
                             className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[#DC2626]/10 hover:text-[#DC2626] dark:hover:bg-[#F87171]/15 dark:hover:text-[#F87171] transition-colors cursor-pointer"
                           >
@@ -826,7 +975,7 @@ const HabitGrid: React.FC = () => {
                           type="submit"
                           size="sm"
                           variant="secondary"
-                          disabled={busyActionKey === `tomorrow-${category.id}`}
+                          disabled={writeControlsDisabled}
                         >
                           <Plus className="h-3.5 w-3.5 text-[#D98200] dark:text-amber" />
                         </Button>
@@ -834,6 +983,7 @@ const HabitGrid: React.FC = () => {
                     </form>
                   )}
                 </div>
+                )}
               </div>
             );
           })}

@@ -11,8 +11,8 @@ function applyLanguage(language: Language) {
   if (typeof document === 'undefined') return;
   document.documentElement.lang = language;
   document.title = language === 'es'
-    ? 'Proactive31 | Registro de hábitos de 31 días'
-    : 'Proactive 31-Day Habit Tracker | Command Center';
+    ? 'Kraken Habits | Registro de hábitos de 31 días'
+    : 'Kraken Habits | Command Center';
 }
 
 const initialLanguage = detectLanguage(globalThis.navigator?.language);

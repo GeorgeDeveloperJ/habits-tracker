@@ -8,12 +8,14 @@ import actionRoutes from './routes/actions.routes';
 import authRoutes from './routes/auth.routes';
 
 import { prisma } from './config/db';
-import { configurePasswordResetDelivery } from './config/passwordResetDelivery';
+import { configureAuthEmail } from './config/authEmailDelivery';
 
 const app = express();
 const trustedProxies = process.env.TRUSTED_PROXY_CIDRS?.split(',').map(value => value.trim()).filter(Boolean);
 if (trustedProxies?.length) app.set('trust proxy', trustedProxies);
-app.locals.passwordResetDelivery = configurePasswordResetDelivery(process.env);
+const authEmail = configureAuthEmail(process.env);
+app.locals.passwordResetDelivery = authEmail?.passwordReset;
+app.locals.emailVerificationDelivery = authEmail?.verification;
 const PORT = Number(process.env.PORT) || 3000;
 
 if (process.env.NODE_ENV === 'production' && (process.env.JWT_SECRET?.length ?? 0) < 32) {
@@ -48,13 +50,18 @@ app.get('/api/health', ( req: Request, res: Response ) => {
 
 app.get('/api/ready', async (_req, res) => {
   try {
-    const [database] = await prisma.$queryRaw<{ canWriteRateBuckets: boolean }[]>`
+    const [database] = await prisma.$queryRaw<{ canWriteRateBuckets: boolean; canUseVerificationChallenges: boolean }[]>`
       SELECT has_table_privilege('"AuthRateBucket"', 'INSERT')
         AND has_table_privilege('"AuthRateBucket"', 'UPDATE') AS "canWriteRateBuckets",
+        has_table_privilege('"EmailVerificationChallenge"', 'SELECT')
+        AND has_table_privilege('"EmailVerificationChallenge"', 'INSERT')
+        AND has_table_privilege('"EmailVerificationChallenge"', 'UPDATE')
+        AND has_table_privilege('"EmailVerificationChallenge"', 'DELETE') AS "canUseVerificationChallenges",
         (SELECT "count" FROM "AuthRateBucket" LIMIT 0),
-        (SELECT "sessionVersion" FROM "User" LIMIT 0)
+        (SELECT "sessionVersion" FROM "User" LIMIT 0),
+        (SELECT "emailVerifiedAt" FROM "User" LIMIT 0)
     `;
-    if (!database?.canWriteRateBuckets) {
+    if (!database?.canWriteRateBuckets || !database.canUseVerificationChallenges) {
       return res.status(503).json({ status: 'unavailable' });
     }
     res.status(200).json({ status: 'ready' });

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ForgotPassword from './components/auth/ForgotPassword';
@@ -21,6 +21,7 @@ function AnalyticsRoute() {
 }
 
 function App() {
+  const Router = import.meta.env.MODE === 'app' ? HashRouter : BrowserRouter;
   return (
     <Router>
       <Routes>

@@ -75,7 +75,7 @@ export default function ResetPassword() {
         <div className="w-full max-w-md">
           <AuthThemeToggleBar />
 
-          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-7 sm:p-9">
+          <div className="rounded-[32px] border border-[var(--border-hairline)] bg-[var(--bg-card)] p-5 sm:p-8">
             <div className="mb-7">
               <p className="font-mono-tabular text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
                 {t("Set New Password")}
@@ -121,8 +121,8 @@ export default function ResetPassword() {
                 </label>
                 <Input
                   id="reset-password"
-                  name={t("password")}
-                  type={t("password")}
+                  name="password"
+                  type="password"
                   autoComplete="new-password"
                   required
                   value={password}
@@ -141,7 +141,7 @@ export default function ResetPassword() {
                 <Input
                   id="reset-confirm-password"
                   name="confirmPassword"
-                  type={t("password")}
+                  type="password"
                   autoComplete="new-password"
                   required
                   value={confirmPassword}

@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import crypto from 'node:crypto';
 import { prisma } from '../config/db';
 import { hash, compare } from 'bcrypt';
-import { sign } from 'jsonwebtoken';
 import logger from '../config/logger';
-import { passwordResetDeliveryErrorCode, type PasswordResetDelivery } from '../config/passwordResetDelivery';
+import { smtpErrorCode, type AuthEmailDelivery } from '../config/authEmailDelivery';
+import { sendSession, startEmailVerification } from './emailVerification.controller';
 
 const hashResetToken = (token: string): string => {
     return crypto.createHash('sha256').update(token).digest('hex');
@@ -31,14 +31,7 @@ export const register = async ( req: Request, res: Response ) => {
         }
 
         const hashedPassword = await hash(password, 10);
-        const user = await prisma.user.create({ data: { email, hashedPassword } });
-        const token = sign({ id: user.id, version: user.sessionVersion }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
-
-        return res.status( 201 ).json({
-            success: true,
-            message: 'User created successfully',
-            data: { token, id: user.id, email: user.email }
-        });
+        return await startEmailVerification(req, res, { email, hashedPassword });
     } catch ( error ) {
         logger.error( `Error registering user: ${(error as Error).message}` );
         return res.status( 500 ).json({
@@ -76,14 +69,10 @@ export const login = async ( req: Request, res: Response ) => {
             });
         }
 
-        const token = sign({ id: user.id, version: user.sessionVersion }, process.env.JWT_SECRET as string, { expiresIn: '7d' });
-
-        return res.status( 200 ).json({
-            success: true,
-            message: 'Login successful',
-            data: { token, id: user.id, email: user.email }
-        });
-
+        if (!user.emailVerifiedAt) {
+            return await startEmailVerification(req, res, { email, userId: user.id, sessionVersion: user.sessionVersion });
+        }
+        return sendSession(res, 200, 'Login successful', user);
     } catch (error) {
         logger.error(`Error logging in user: ${(error as Error).message}`);
         return res.status(500).json({
@@ -95,7 +84,7 @@ export const login = async ( req: Request, res: Response ) => {
 
 export const forgotPassword = async ( req: Request, res: Response ) => {
     try {
-        const deliver = req.app.locals.passwordResetDelivery as PasswordResetDelivery | undefined;
+        const deliver = req.app.locals.passwordResetDelivery as AuthEmailDelivery | undefined;
         if (!deliver) {
             return res.status(503).json({ success: false, message: 'Password recovery is temporarily unavailable.' });
         }
@@ -140,8 +129,8 @@ export const forgotPassword = async ( req: Request, res: Response ) => {
         });
 
         res.status(200).json({ success: true, message, data: null });
-        void deliver(user.email, rawToken, expiresAt).catch(async (error: unknown) => {
-            logger.error(`Password reset email delivery failed (${passwordResetDeliveryErrorCode(error)})`);
+        void deliver(user.email, rawToken, expiresAt, req.body.language).catch(async (error: unknown) => {
+            logger.error(`Password reset email delivery failed (${smtpErrorCode(error)})`);
             await prisma.passwordResetToken.updateMany({
                 where: { tokenHash, usedAt: null },
                 data: { usedAt: new Date() }

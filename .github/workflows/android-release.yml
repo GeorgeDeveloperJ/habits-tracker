@@ -1,0 +1,219 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag matching manifest version (defaults to v<version>)
+        required: false
+        type: string
+      prerelease:
+        description: Mark GitHub Release as a prerelease
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify version and frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      is_prerelease: ${{ steps.resolve.outputs.is_prerelease }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.12'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci --no-audit --no-fund
+
+      - name: Lint frontend
+        run: npm --prefix frontend run lint
+
+      - name: Test frontend
+        run: npm --prefix frontend test
+
+      - name: Build frontend
+        run: npm --prefix frontend run build
+
+      - name: Resolve and verify release tag and version
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.release_tag }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          manifest_version="$(bash packaging/android/verify-version.sh)"
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            tag="$REF_NAME"
+          elif [[ -n "$INPUT_TAG" ]]; then
+            tag="$INPUT_TAG"
+          else
+            tag="v${manifest_version}"
+          fi
+
+          verified_version="$(bash packaging/android/verify-version.sh "$tag")"
+
+          is_prerelease="false"
+          if [[ "$INPUT_PRERELEASE" == "true" || "$tag" == *-* ]]; then
+            is_prerelease="true"
+          fi
+
+          {
+            echo "version=$verified_version"
+            echo "tag=$tag"
+            echo "is_prerelease=$is_prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+  build-and-release:
+    name: Build, sign, and publish APK
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - name: Verify signing secrets are configured
+        env:
+          HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+          HAS_STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
+          HAS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS != '' }}
+          HAS_KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD != '' }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ "$HAS_KEYSTORE" == "true" ]] || missing+=("ANDROID_KEYSTORE_BASE64")
+          [[ "$HAS_STORE_PASS" == "true" ]] || missing+=("ANDROID_KEYSTORE_PASSWORD")
+          [[ "$HAS_KEY_ALIAS" == "true" ]] || missing+=("ANDROID_KEY_ALIAS")
+          [[ "$HAS_KEY_PASS" == "true" ]] || missing+=("ANDROID_KEY_PASSWORD")
+          if [[ "${#missing[@]}" -gt 0 ]]; then
+            echo "Missing required signing secrets: ${missing[*]}" >&2
+            echo "See docs/android-cicd.md for keystore generation and GitHub Secrets setup." >&2
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Android & Tauri toolchain
+        uses: ./.github/actions/setup-android-tauri
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci --no-audit --no-fund
+
+      - name: Build unsigned release APK
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://habits-api.krakenserv.dev/api' }}
+        run: bash packaging/android/build.sh --ci
+
+      - name: Sign and verify release APK
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find frontend/src-tauri/gen/android/app/build/outputs/apk -type f -name '*-release-unsigned.apk')
+          if [[ "${#apks[@]}" -ne 1 ]]; then
+            echo "Expected exactly 1 unsigned release APK, found ${#apks[@]}: ${apks[*]:-none}" >&2
+            exit 1
+          fi
+          unsigned_apk="${apks[0]}"
+
+          keystore_path="$RUNNER_TEMP/release.keystore"
+          trap 'rm -f "$keystore_path"' EXIT
+
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore_path"
+          chmod 600 "$keystore_path"
+
+          mkdir -p out/android
+          apk_name="kraken-habits-${VERSION}-arm64.apk"
+          signed_apk="out/android/${apk_name}"
+
+          apksigner sign \
+            --ks "$keystore_path" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$signed_apk" \
+            "$unsigned_apk"
+
+          bash packaging/android/verify-apk.sh --signed "$signed_apk"
+
+          (cd out/android && sha256sum "$apk_name" > SHA256SUMS.txt)
+
+      - name: Clean up temporary keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.keystore"
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-signed-apk-${{ needs.verify.outputs.tag }}
+          path: |
+            out/android/kraken-habits-*-arm64.apk
+            out/android/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          IS_PRERELEASE: ${{ needs.verify.outputs.is_prerelease }}
+        run: |
+          set -euo pipefail
+          apk_path="out/android/kraken-habits-${VERSION}-arm64.apk"
+          sums_path="out/android/SHA256SUMS.txt"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$apk_path" "$sums_path" --clobber
+          else
+            notes_file="$RUNNER_TEMP/release-notes.md"
+            cat > "$notes_file" <<EOF
+          Signed ARM64 Android APK for Kraken Habits \`$TAG\`.
+
+          ### Install
+          1. Download \`kraken-habits-${VERSION}-arm64.apk\` and optionally verify its checksum against \`SHA256SUMS.txt\`.
+          2. For automatic updates before F-Droid publication, track this repository's GitHub Releases in [Obtainium](https://obtainium.imranr.dev/).
+
+          > **Note:** GitHub Release builds are signed with the project's release keystore. If you later switch to the official F-Droid catalog build, you will need to uninstall this build first because F-Droid uses its own signing key.
+          EOF
+
+            args=(
+              "$TAG"
+              "$apk_path"
+              "$sums_path"
+              --title "Kraken Habits $TAG"
+              --notes-file "$notes_file"
+              --generate-notes
+            )
+            if [[ "$IS_PRERELEASE" == "true" ]]; then
+              args+=(--prerelease)
+            fi
+            gh release create "${args[@]}"
+          fi

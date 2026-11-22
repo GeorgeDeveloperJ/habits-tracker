@@ -1,0 +1,14 @@
+/target/
+/gen/schemas/
+/gen/android/.gradle/
+/gen/android/local.properties
+/gen/android/keystore.properties
+/gen/android/**/build/
+/icons/android/
+/icons/ios/
+/icons/Square*Logo.png
+/icons/StoreLogo.png
+/icons/icon.icns
+/icons/icon.ico
+/icons/64x64.png
+/icons/128x128@2x.png

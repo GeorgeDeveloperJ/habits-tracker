@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Kraken Habits
+Comment=Plan and track your 31-day habit cycle
+Exec=kraken-habits
+Icon=dev.krakenserv.habits
+Terminal=false
+Categories=Office;
