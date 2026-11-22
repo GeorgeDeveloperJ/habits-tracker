@@ -1,0 +1,1 @@
+Performance improvements: faster initial load, smaller app bundle, smoother chart and grid rendering, and quicker progress and action sync.
